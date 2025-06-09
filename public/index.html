@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bybit City</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="app-container">
+        <header>
+            <h1 id="app-title">Bybit City</h1>
+            <div id="user-points-display">Points: <span id="points-value">0</span></div>
+        </header>
+
+        <main id="main-content">
+            <!-- Content will be dynamically loaded here -->
+            <div class="page-content" id="loading-page">
+                <div class="loading-spinner"></div>
+                <p>Building Bybit City...</p>
+            </div>
+            
+            <div class="page-content" id="quest-page" style="display:none;">
+                <h2><i class="fas fa-hard-hat city-icon"></i> Construction Zone</h2>
+                <p class="section-description">Complete daily/weekly missions to build the city</p>
+                <div id="quest-list"></div>
+            </div>
+            
+            <div class="page-content" id="follow-page" style="display:none;">
+                <h2><i class="fas fa-satellite-dish city-icon"></i> Media Tower</h2>
+                <p class="section-description">Follow Bybit socials to increase global visibility</p>
+                <div id="follow-list"></div>
+            </div>
+            
+            <div class="page-content" id="invite-page" style="display:none;">
+                <h2><i class="fas fa-plane-arrival city-icon"></i> Immigration Office</h2>
+                <p class="section-description">Invite new citizens to earn rewards</p>
+                <button id="daily-checkin-btn"><i class="fas fa-calendar-check"></i> Daily Check-in</button>
+                <p>Your Citizen Invite Link:</p>
+                <code id="invite-link"></code>
+                <button id="copy-invite-link-btn"><i class="fas fa-copy"></i> Copy Link</button>
+                <h3><i class="fas fa-history"></i> Immigration Records</h3>
+                <div id="referral-history"></div>
+            </div>
+            
+            <div class="page-content" id="leaderboard-page" style="display:none;">
+                <h2><i class="fas fa-landmark city-icon"></i> Mayor's Hall</h2>
+                <p class="section-description">Track the top citizens helping the city grow</p>
+                <div id="leaderboard-list"></div>
+            </div>
+            
+            <div class="page-content" id="profile-page" style="display:none;">
+                <h2><i class="fas fa-id-card city-icon"></i> Citizen Hub</h2>
+                <p class="section-description">View your stats, submissions, and city level</p>
+                <p>Citizen ID: <span id="profile-tg-id"></span></p>
+                <p>Citizen Name: <span id="profile-username"></span></p>
+                <p>City Points: <span id="profile-points"></span></p>
+                <p>Citizens Invited: <span id="profile-invites"></span></p>
+                <p>Last Check-in: <span id="profile-last-checkin"></span></p>
+                <div>
+                    <label for="bybit-uid-input">Bybit UID:</label>
+                    <input type="text" id="bybit-uid-input" placeholder="Enter your Bybit UID">
+                    <button id="submit-uid-btn"><i class="fas fa-save"></i> Submit UID</button>
+                </div>
+            </div>
+        </main>
+
+        <nav id="bottom-nav">
+            <button class="nav-btn" data-page="quest-page"><i class="fas fa-building"></i><br>Quests</button>
+            <button class="nav-btn" data-page="follow-page"><i class="fas fa-satellite"></i><br>Follow</button>
+            <button class="nav-btn" data-page="invite-page"><i class="fas fa-users"></i><br>Invite</button>
+            <button class="nav-btn" data-page="leaderboard-page"><i class="fas fa-medal"></i><br>Leaderboard</button>
+            <button class="nav-btn" data-page="profile-page"><i class="fas fa-user-circle"></i><br>Profile</button>
+        </nav>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

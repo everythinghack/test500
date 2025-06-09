@@ -1,0 +1,462 @@
+:root {
+    --primary-color: #f7a600;
+    --secondary-color: #00a0e9;
+    --dark-bg: #121212;
+    --card-bg: #1e1e1e;
+    --card-border: #333;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --accent-gradient: linear-gradient(135deg, #f7a600, #ff6b00);
+    --button-gradient: linear-gradient(to right, #00a0e9, #0056b3);
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    
+    /* City theme colors */
+    --construction-color: #f7a600;
+    --media-color: #00a0e9;
+    --immigration-color: #4cd964;
+    --mayor-color: #ff3b30;
+    --citizen-color: #5856d6;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    margin: 0;
+    background-color: var(--dark-bg);
+    color: var(--text-primary);
+    overscroll-behavior-y: none;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-image: url('https://i.imgur.com/JDZgFTw.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+#app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    background-color: rgba(18, 18, 18, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+header {
+    background: linear-gradient(to right, rgba(30, 30, 30, 0.9), rgba(20, 20, 20, 0.9));
+    padding: 20px 15px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+#app-title {
+    margin: 0;
+    font-size: 1.8em;
+    font-weight: 700;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#user-points-display {
+    font-size: 1em;
+    color: var(--text-secondary);
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#points-value {
+    color: var(--primary-color);
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+main {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.page-content {
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    background: linear-gradient(to right, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.95));
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    padding: 8px 12px;
+    cursor: pointer;
+    text-align: center;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.nav-btn.active {
+    color: var(--primary-color);
+    background-color: rgba(247, 166, 0, 0.1);
+    font-weight: 500;
+}
+
+/* City-themed section headers */
+.page-content h2 {
+    font-size: 1.6em;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+    position: relative;
+    padding-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.page-content h2::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: 3px;
+    border-radius: 3px;
+}
+
+/* Construction Zone (Quests) */
+#quest-page h2::after {
+    background: linear-gradient(to right, var(--construction-color), #ff6b00);
+}
+
+/* Media Tower (Follow) */
+#follow-page h2::after {
+    background: linear-gradient(to right, var(--media-color), #0056b3);
+}
+
+/* Immigration Office (Invite) */
+#invite-page h2::after {
+    background: linear-gradient(to right, var(--immigration-color), #2ecc71);
+}
+
+/* Mayor's Hall (Leaderboard) */
+#leaderboard-page h2::after {
+    background: linear-gradient(to right, var(--mayor-color), #ff5e3a);
+}
+
+/* Citizen Hub (Profile) */
+#profile-page h2::after {
+    background: linear-gradient(to right, var(--citizen-color), #3a3897);
+}
+
+/* Task/Item Styling */
+.task-item, .leaderboard-item, .referral-item {
+    background: linear-gradient(145deg, rgba(42, 42, 42, 0.8), rgba(30, 30, 30, 0.8));
+    padding: 18px;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.task-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+}
+
+.task-item h3, .leaderboard-item p, .referral-item p {
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.task-item h3 {
+    font-size: 1.2em;
+    display: flex;
+    justify-content: space-between;
+}
+
+.task-item h3 span.points {
+    color: var(--primary-color);
+    font-weight: 500;
+    font-size: 0.9em;
+    background: rgba(247, 166, 0, 0.1);
+    padding: 4px 8px;
+    border-radius: 12px;
+}
+
+.task-item p {
+    font-size: 0.95em;
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.task-item input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    font-size: 1em;
+    margin-bottom: 15px;
+    transition: all 0.2s ease;
+}
+
+.task-item input[type="text"]:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 2px rgba(0, 160, 233, 0.2);
+}
+
+.task-item button, button {
+    background: var(--button-gradient);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95em;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.task-item button:hover, button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.task-item button:disabled {
+    background: #444;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Profile page styling */
+#profile-page {
+    padding: 10px 0;
+}
+
+#profile-page p {
+    background: rgba(30, 30, 30, 0.6);
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin: 10px 0;
+    display: flex;
+    justify-content: space-between;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#profile-page p span:last-child {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+#profile-page input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    font-size: 1em;
+}
+
+#profile-page input[type="text"]:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 2px rgba(0, 160, 233, 0.2);
+}
+
+/* Leaderboard styling */
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+}
+
+.leaderboard-item .rank {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--mayor-color);
+    margin-right: 15px;
+    min-width: 30px;
+    text-align: center;
+}
+
+.leaderboard-item .user-info {
+    flex-grow: 1;
+}
+
+.leaderboard-item .points {
+    font-weight: bold;
+    color: var(--secondary-color);
+    background: rgba(0, 160, 233, 0.1);
+    padding: 5px 10px;
+    border-radius: 12px;
+}
+
+/* Join and Verify buttons */
+.join-btn, .verify-btn {
+    background: linear-gradient(to right, #00a0e9, #0088cc);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 0.95em;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: 100%;
+}
+
+.verify-btn {
+    background: linear-gradient(to right, #28a745, #218838);
+}
+
+.join-btn:hover, .verify-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.join-btn:disabled, .verify-btn:disabled {
+    background: #444;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Utility */
+.hidden {
+    display: none !important;
+}
+
+/* Loading animation */
+#loading-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Invite page styling */
+#invite-link {
+    background: rgba(30, 30, 30, 0.6);
+    padding: 12px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: var(--secondary-color);
+    word-break: break-all;
+    display: block;
+    margin: 15px 0;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#daily-checkin-btn {
+    background: linear-gradient(to right, var(--primary-color), #ff6b00);
+    width: 100%;
+    margin: 15px 0;
+}
+
+/* City theme icons */
+.city-icon {
+    font-size: 1.5em;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+/* Section descriptions */
+.section-description {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    margin-top: -15px;
+    margin-bottom: 20px;
+    font-style: italic;
+}
+
+/* Bottom nav with city theme */
+#bottom-nav .nav-btn[data-page="quest-page"] i {
+    color: var(--construction-color);
+}
+
+#bottom-nav .nav-btn[data-page="follow-page"] i {
+    color: var(--media-color);
+}
+
+#bottom-nav .nav-btn[data-page="invite-page"] i {
+    color: var(--immigration-color);
+}
+
+#bottom-nav .nav-btn[data-page="leaderboard-page"] i {
+    color: var(--mayor-color);
+}
+
+#bottom-nav .nav-btn[data-page="profile-page"] i {
+    color: var(--citizen-color);
+}
+
+/* City background elements */
+.city-bg-element {
+    position: absolute;
+    opacity: 0.1;
+    z-index: -1;
+    pointer-events: none;
+}
+
+
+
