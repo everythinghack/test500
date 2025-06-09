@@ -623,17 +623,17 @@ app.post("/api/checkin", ensureUser, (req, res) => {
 
           // Update user’s points and last_check_in
           db.run(
-            "UPDATE Users SET points = points + ?, last_check_in = ? WHERE telegram_id = ?",
-            [DAILY_CHECKIN_POINTS, today, req.user.telegram_id],
+            "UPDATE Users SET last_check_in = ? WHERE telegram_id = ?",
+            [today, req.user.telegram_id],
             function (updateErr) {
               if (updateErr) {
                 console.error(
-                  `SERVER: Error updating user points and last_check_in for user ${req.user.telegram_id}:`,
+                  `SERVER: Error updating last_check_in for user ${req.user.telegram_id}:`,
                   updateErr.message
                 );
                 return res
                   .status(500)
-                  .json({ error: `Failed to update user: ${updateErr.message}` });
+                  .json({ error: `Failed to update check-in date: ${updateErr.message}` });
               }
 
               const nextCheckIn = new Date();
