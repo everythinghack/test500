@@ -30,7 +30,7 @@ const initDb = () => {
             points INTEGER DEFAULT 0,
             bybit_uid TEXT,
             referrer_id TEXT,
-            last_check_in DATE,
+            last_check_in TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (referrer_id) REFERENCES Users(telegram_id) ON DELETE SET NULL ON UPDATE CASCADE
         )`);

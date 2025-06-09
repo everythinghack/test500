@@ -63,7 +63,7 @@ async function initializeTelegramWebApp(tg) {
             first_name: 'LocalTestUser',
             username: 'localtestuser'
           },
-          bot_username: 'testbot'
+          bot_username: 'testbla500bot'
         },
         ready: () => console.log('Mock Telegram WebApp ready'),
         expand: () => console.log('Mock Telegram WebApp expanded'),
@@ -164,22 +164,36 @@ async function initializeTelegramWebApp(tg) {
   
         updatePointsDisplay(profile.points);
   
-        // Handle Bybit UID submission button
+        // Handle Bybit UID submission
         const submitUidBtn = document.getElementById("submit-uid-btn");
         const bybitUidInput = document.getElementById("bybit-uid-input");
-        submitUidBtn.onclick = async () => {
-          const newUid = bybitUidInput.value.trim();
-          if (!newUid) {
-            tg.showAlert("Enter a valid Bybit UID");
-            return;
-          }
-          const res = await apiRequest("/profile/uid", "POST", { bybitUid: newUid });
-          if (res.success) {
-            tg.showAlert("UID updated");
-          } else {
-            tg.showAlert("Failed: " + (res.error || ""));
-          }
-        };
+        
+        if (profile.bybit_uid) {
+          // User already has a UID - show it and disable editing
+          bybitUidInput.value = profile.bybit_uid;
+          bybitUidInput.disabled = true;
+          submitUidBtn.disabled = true;
+          submitUidBtn.textContent = "Already Submitted";
+          submitUidBtn.style.opacity = "0.5";
+        } else {
+          // User can still submit UID
+          bybitUidInput.placeholder = "Enter your Bybit UID (one-time only)";
+          submitUidBtn.onclick = async () => {
+            const newUid = bybitUidInput.value.trim();
+            if (!newUid) {
+              tg.showAlert("Enter a valid Bybit UID");
+              return;
+            }
+            const res = await apiRequest("/profile/uid", "POST", { bybitUid: newUid });
+            if (res.success) {
+              tg.showAlert(res.message || "UID submitted successfully");
+              // Reload the profile to show the updated state
+              await loadProfilePage();
+            } else {
+              tg.showAlert(res.message || res.error || "Failed to submit UID");
+            }
+          };
+        }
       } catch (error) {
         console.error("APP_JS: loadProfilePage error:", error);
         pageContainer["loading-page"].innerHTML =
@@ -379,7 +393,7 @@ async function initializeTelegramWebApp(tg) {
         }
   
         // Generate a proper invite link
-        const botUsername = tg.initDataUnsafe.bot_username || "testblabla300bot";
+        const botUsername = tg.initDataUnsafe.bot_username || "testbla500bot";
         const refLink = `https://t.me/${botUsername}?start=ref_${profile.telegram_id}`;
         inviteLinkEl.textContent = refLink;
   
@@ -507,6 +521,27 @@ async function initializeTelegramWebApp(tg) {
     function setupDailyCheckinButton() {
       const checkinBtn = document.getElementById("daily-checkin-btn");
       if (!checkinBtn) return;
+      
+      // Function to update countdown display
+      function updateCountdown(nextCheckIn) {
+        const now = new Date();
+        const nextTime = new Date(nextCheckIn);
+        const timeDiff = nextTime.getTime() - now.getTime();
+        
+        if (timeDiff <= 0) {
+          checkinBtn.disabled = false;
+          checkinBtn.innerHTML = "<i class='fas fa-calendar-check'></i> Daily Check-in";
+          return;
+        }
+        
+        const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+        
+        checkinBtn.disabled = true;
+        checkinBtn.innerHTML = `⏰ ${hours}h ${minutes}m ${seconds}s`;
+      }
+      
       checkinBtn.addEventListener("click", async () => {
         try {
           checkinBtn.disabled = true;
@@ -515,11 +550,36 @@ async function initializeTelegramWebApp(tg) {
           if (result.success) {
             tg.showAlert(result.message);
             await loadProfilePage();
+            
+            // Start countdown timer
+            if (result.next_check_in) {
+              const countdownInterval = setInterval(() => {
+                updateCountdown(result.next_check_in);
+                const now = new Date();
+                const nextTime = new Date(result.next_check_in);
+                if (now >= nextTime) {
+                  clearInterval(countdownInterval);
+                }
+              }, 1000);
+            }
+            
             showPage("invite-page"); // stay on Invite page
           } else {
-            tg.showAlert("❌ " + (result.error || "Check-in failed"));
-            checkinBtn.disabled = false;
-            checkinBtn.innerHTML = "<i class='fas fa-calendar-check'></i> Daily Check-in";
+            if (result.next_check_in && result.hours_left) {
+              // Show countdown for cooldown
+              const countdownInterval = setInterval(() => {
+                updateCountdown(result.next_check_in);
+                const now = new Date();
+                const nextTime = new Date(result.next_check_in);
+                if (now >= nextTime) {
+                  clearInterval(countdownInterval);
+                }
+              }, 1000);
+            } else {
+              checkinBtn.disabled = false;
+              checkinBtn.innerHTML = "<i class='fas fa-calendar-check'></i> Daily Check-in";
+            }
+            tg.showAlert(result.message || "Check-in on cooldown");
           }
         } catch (err) {
           console.error("APP_JS: Check-in error:", err);

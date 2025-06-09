@@ -477,12 +477,44 @@ app.post("/api/profile/uid", ensureUser, (req, res) => {
     return res.status(400).json({ error: "Bybit UID is required" });
   }
 
-  db.run(
-    `UPDATE Users SET bybit_uid = ? WHERE telegram_id = ?`,
-    [bybitUid, req.user.telegram_id],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      return res.json({ success: true, message: "Bybit UID updated successfully." });
+  // Check if user already has a UID
+  db.get(
+    "SELECT bybit_uid FROM Users WHERE telegram_id = ?",
+    [req.user.telegram_id],
+    (err, user) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (user && user.bybit_uid) {
+        return res.status(400).json({ 
+          error: "UID already submitted", 
+          message: "You have already submitted your Bybit UID. It cannot be changed once submitted." 
+        });
+      }
+
+      // Update the UID (only if not already set)
+      db.run(
+        `UPDATE Users SET bybit_uid = ? WHERE telegram_id = ? AND bybit_uid IS NULL`,
+        [bybitUid, req.user.telegram_id],
+        function (updateErr) {
+          if (updateErr) {
+            return res.status(500).json({ error: updateErr.message });
+          }
+          
+          if (this.changes === 0) {
+            return res.status(400).json({ 
+              error: "UID already submitted", 
+              message: "Your Bybit UID has already been submitted and cannot be changed." 
+            });
+          }
+
+          return res.json({ 
+            success: true, 
+            message: "Bybit UID submitted successfully. This cannot be changed later." 
+          });
+        }
+      );
     }
   );
 });
@@ -577,7 +609,8 @@ app.post("/api/quests/complete", ensureUser, (req, res) => {
 app.post("/api/checkin", ensureUser, (req, res) => {
   console.log(`SERVER: /api/checkin called for user ${req.user.telegram_id}`);
 
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const currentTimestamp = now.toISOString();
 
   db.get(
     "SELECT last_check_in FROM Users WHERE telegram_id = ?",
@@ -593,12 +626,22 @@ app.post("/api/checkin", ensureUser, (req, res) => {
           .json({ error: `Database error: ${err.message}` });
       }
 
-      if (user && user.last_check_in === today) {
-        console.log(`SERVER: User ${req.user.telegram_id} already checked in today`);
-        return res.status(400).json({
-          error: "Already checked in today.",
-          message: "You have already checked in today. Come back tomorrow!",
-        });
+      // Check if user can check in (24 hour cooldown)
+      if (user && user.last_check_in) {
+        const lastCheckIn = new Date(user.last_check_in);
+        const timeDiff = now.getTime() - lastCheckIn.getTime();
+        const hoursLeft = 24 - (timeDiff / (1000 * 60 * 60));
+        
+        if (hoursLeft > 0) {
+          const nextCheckIn = new Date(lastCheckIn.getTime() + (24 * 60 * 60 * 1000));
+          console.log(`SERVER: User ${req.user.telegram_id} must wait ${hoursLeft.toFixed(1)} hours`);
+          return res.status(400).json({
+            error: "Check-in on cooldown",
+            message: `You must wait ${Math.ceil(hoursLeft)} hours before checking in again.`,
+            next_check_in: nextCheckIn.toISOString(),
+            hours_left: hoursLeft
+          });
+        }
       }
 
       const DAILY_CHECKIN_POINTS = 10;
@@ -624,7 +667,7 @@ app.post("/api/checkin", ensureUser, (req, res) => {
           // Update user’s points and last_check_in
           db.run(
             "UPDATE Users SET last_check_in = ? WHERE telegram_id = ?",
-            [today, req.user.telegram_id],
+            [currentTimestamp, req.user.telegram_id],
             function (updateErr) {
               if (updateErr) {
                 console.error(
@@ -633,21 +676,21 @@ app.post("/api/checkin", ensureUser, (req, res) => {
                 );
                 return res
                   .status(500)
-                  .json({ error: `Failed to update check-in date: ${updateErr.message}` });
+                  .json({ error: `Failed to update check-in timestamp: ${updateErr.message}` });
               }
 
-              const nextCheckIn = new Date();
-              nextCheckIn.setDate(nextCheckIn.getDate() + 1);
-              nextCheckIn.setHours(0, 0, 0, 0);
+              // Calculate next check-in time (24 hours from now)
+              const nextCheckIn = new Date(now.getTime() + (24 * 60 * 60 * 1000));
 
               console.log(
                 `SERVER: User ${req.user.telegram_id} checked in successfully, earned ${DAILY_CHECKIN_POINTS} points`
               );
               return res.json({
                 success: true,
-                message: `Checked in! You earned ${DAILY_CHECKIN_POINTS} points.`,
+                message: `Daily check-in successful! You earned ${DAILY_CHECKIN_POINTS} points.`,
                 points_earned: DAILY_CHECKIN_POINTS,
                 next_check_in: nextCheckIn.toISOString(),
+                current_time: currentTimestamp
               });
             }
           );
