@@ -603,19 +603,22 @@ app.post("/api/checkin", ensureUser, (req, res) => {
 
       const DAILY_CHECKIN_POINTS = 10;
 
-      // Insert point transaction
-      db.run(
-        "INSERT INTO PointTransactions (user_id, points_change, reason) VALUES (?, ?, ?)",
-        [req.user.telegram_id, DAILY_CHECKIN_POINTS, "daily_checkin"],
-        function (txErr) {
-          if (txErr) {
+      // Use the addPoints function which handles transactions correctly
+      addPoints(
+        req.user.telegram_id,
+        DAILY_CHECKIN_POINTS,
+        "daily_checkin",
+        null,
+        null,
+        (addPointsErr) => {
+          if (addPointsErr) {
             console.error(
-              `SERVER: Error adding points transaction for user ${req.user.telegram_id}:`,
-              txErr.message
+              `SERVER: Error adding points for user ${req.user.telegram_id}:`,
+              addPointsErr.message
             );
             return res
               .status(500)
-              .json({ error: `Failed to add points: ${txErr.message}` });
+              .json({ error: `Failed to add points: ${addPointsErr.message}` });
           }
 
           // Update user’s points and last_check_in
