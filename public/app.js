@@ -47,23 +47,55 @@ async function initializeTelegramWebApp(tg) {
   
   // ------------ Main entrypoint ------------
   document.addEventListener("DOMContentLoaded", async () => {
-    if (!window.Telegram || !window.Telegram.WebApp) {
-      console.error("APP_JS: Telegram WebApp not available");
-      return;
+    // Check if we're in Telegram WebApp or need to use mock data
+    let tg = window.Telegram?.WebApp;
+    let isLocalTesting = false;
+    
+    if (!tg || !tg.initData) {
+      console.log("APP_JS: Telegram WebApp not available, using mock data for local testing");
+      isLocalTesting = true;
+      // Create mock Telegram WebApp object
+      tg = {
+        initData: 'mock_local_test',
+        initDataUnsafe: {
+          user: {
+            id: 123456789,
+            first_name: 'LocalTestUser',
+            username: 'localtestuser'
+          },
+          bot_username: 'testbot'
+        },
+        ready: () => console.log('Mock Telegram WebApp ready'),
+        expand: () => console.log('Mock Telegram WebApp expanded'),
+        showAlert: (message) => alert(message),
+        showPopup: (config) => alert(config.message),
+        openLink: (url) => window.open(url, '_blank')
+      };
     }
-    const tg = window.Telegram.WebApp;
   
-    // Hardcode your API base URL (or read from initData.query_params if you set it)
-    window.API_BASE_URL =
-      "https://bybit-event-mini-app-working-464578924371.asia-south1.run.app";
+    // Use localhost for development, production URL for deployed version
+    window.API_BASE_URL = window.location.hostname === 'localhost' 
+      ? "http://localhost:8080"
+      : "https://bybit-event-mini-app-working-464578924371.asia-south1.run.app";
   
     console.log("APP_JS: Attempting to initialize Telegram Web App...");
     let initResult;
-    try {
-      initResult = await initializeTelegramWebApp(tg);
-    } catch (err) {
-      console.error("APP_JS: Failed to initialize Telegram WebApp:", err);
-      return;
+    
+    if (isLocalTesting) {
+      // Use mock data directly for local testing
+      initResult = {
+        initData: tg.initDataUnsafe,
+        telegramUser: tg.initDataUnsafe.user
+      };
+      console.log("APP_JS: Using mock data for local testing");
+    } else {
+      // Use real Telegram WebApp initialization
+      try {
+        initResult = await initializeTelegramWebApp(tg);
+      } catch (err) {
+        console.error("APP_JS: Failed to initialize Telegram WebApp:", err);
+        return;
+      }
     }
   
     const { initData, telegramUser } = initResult;

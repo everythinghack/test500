@@ -1,5 +1,6 @@
 // bybit-event-mini-app/server.js
 
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -19,11 +20,14 @@ initDb();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MINI_APP_URL =
   process.env.MINI_APP_URL ||
-  "https://bybit-event-mini-app-working-464578924371.asia-south1.run.app";
+  "http://localhost:8080";
+
+// For local testing, allow running without bot token
+const IS_LOCAL = process.env.NODE_ENV !== 'production' && MINI_APP_URL.includes('localhost');
 
 if (
-  !BOT_TOKEN ||
-  MINI_APP_URL === "https://your-cloud-run-url.com"
+  !BOT_TOKEN &&
+  !IS_LOCAL
 ) {
   console.error(
     "\n!!! CRITICAL ERROR: TELEGRAM_BOT_TOKEN environment variable is required. Bot and Mini App launch will fail. !!!\n"
@@ -31,22 +35,31 @@ if (
   process.exit(1);
 }
 
-const WEBHOOK_URL = `${MINI_APP_URL}/api/telegram/webhook`;
-const bot = new TelegramBot(BOT_TOKEN, { webhook: { port: PORT } });
+// Initialize bot only if we have a token
+let bot = null;
+if (BOT_TOKEN) {
+  const WEBHOOK_URL = `${MINI_APP_URL}/api/telegram/webhook`;
+  bot = new TelegramBot(BOT_TOKEN, { webhook: { port: PORT } });
 
-bot
-  .setWebHook(WEBHOOK_URL)
-  .then(() => {
-    console.log(`Telegram Bot webhook set to: ${WEBHOOK_URL}`);
-  })
-  .catch((err) => {
-    console.error("Failed to set webhook:", err);
-  });
+  bot
+    .setWebHook(WEBHOOK_URL)
+    .then(() => {
+      console.log(`Telegram Bot webhook set to: ${WEBHOOK_URL}`);
+    })
+    .catch((err) => {
+      console.error("Failed to set webhook:", err);
+    });
+} else {
+  console.log("Running in local mode without Telegram Bot integration");
+}
 
 //
 // --- BOT WEBHOOK HANDLER ---
 //
 app.post("/api/telegram/webhook", express.json(), async (req, res) => {
+  if (!bot) {
+    return res.status(503).json({ error: "Bot not configured" });
+  }
   try {
     const update = req.body;
     const msg = update.message;
@@ -146,7 +159,9 @@ app.post("/api/telegram/webhook", express.json(), async (req, res) => {
           ],
         },
       };
-      await bot.sendMessage(chatId, message, options);
+      if (bot) {
+        await bot.sendMessage(chatId, message, options);
+      }
     }
 
     return res.sendStatus(200);
@@ -590,7 +605,7 @@ app.post("/api/checkin", ensureUser, (req, res) => {
 
       // Insert point transaction
       db.run(
-        "INSERT INTO PointTransactions (user_id, points, reason) VALUES (?, ?, ?)",
+        "INSERT INTO PointTransactions (user_id, points_change, reason) VALUES (?, ?, ?)",
         [req.user.telegram_id, DAILY_CHECKIN_POINTS, "daily_checkin"],
         function (txErr) {
           if (txErr) {
@@ -703,6 +718,9 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
     }
 
     // Check membership status via Bot API
+    if (!bot) {
+      return res.status(503).json({ error: "Bot not configured for verification" });
+    }
     const chatMember = await bot.getChatMember(chatId, userId);
 
     if (chatMember && ["member", "administrator", "creator"].includes(chatMember.status)) {
@@ -770,7 +788,8 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
 //
 // Handle when users leave a channel/group
 //
-bot.on("left_chat_member", async (msg) => {
+if (bot) {
+  bot.on("left_chat_member", async (msg) => {
   if (msg.left_chat_member) {
     const userId = msg.left_chat_member.id;
     const chatId = msg.chat.id;
@@ -822,6 +841,7 @@ bot.on("left_chat_member", async (msg) => {
     }
   }
 });
+}
 
 //
 // --- Get referral list (new endpoint) ---
