@@ -846,6 +846,68 @@ app.get("/api/debug/bot-config", (req, res) => {
   }
 });
 
+// Debug current quest response format
+app.get("/api/debug/quest-response", ensureUser, (req, res) => {
+  getCurrentEventDay((err, currentDay) => {
+    if (err) {
+      return res.json({
+        error: "Could not get current day",
+        details: err.message
+      });
+    }
+
+    db.all(
+      `
+        SELECT 
+          q.id, 
+          q.title, 
+          q.description, 
+          q.points_reward, 
+          q.type, 
+          q.quest_data,
+          q.day_number,
+          CASE WHEN uq.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_completed,
+          CASE 
+            WHEN q.type = 'daily' AND q.day_number <= ? THEN 1
+            WHEN q.type != 'daily' THEN 1
+            ELSE 0
+          END AS is_available
+        FROM Quests q
+        LEFT JOIN UserQuests uq 
+          ON q.id = uq.quest_id 
+          AND uq.user_id = ?
+        WHERE q.is_active = TRUE
+        ORDER BY 
+          CASE q.type 
+            WHEN 'daily' THEN q.day_number 
+            ELSE 999 
+          END,
+          q.id
+      `,
+      [currentDay, req.user.telegram_id],
+      (err, quests) => {
+        if (err) {
+          return res.json({
+            error: "Database error",
+            details: err.message
+          });
+        }
+        
+        const socialQuests = (quests || []).filter(q => q.type === 'social_follow');
+        
+        res.json({
+          current_day: currentDay,
+          total_quests: (quests || []).length,
+          social_quests_count: socialQuests.length,
+          social_quests: socialQuests,
+          all_quests: quests || [],
+          user_id: req.user.telegram_id
+        });
+      }
+    );
+  });
+});
+
 // Test webhook manually
 app.post("/api/debug/test-webhook", (req, res) => {
   const { userId, referrerId } = req.body;

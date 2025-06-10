@@ -311,7 +311,11 @@ async function initializeTelegramWebApp(tg) {
       followList.innerHTML = "<p>Loading social tasks...</p>";
   
       try {
-        const quests = await apiRequest("/quests");
+        const response = await apiRequest("/quests");
+        
+        // Handle both old format (direct array) and new format (object with quests array)
+        const quests = response.quests || response;
+        
         const socialQuests = quests.filter((q) => q.type === "social_follow");
   
         if (socialQuests.length === 0) {
@@ -327,11 +331,11 @@ async function initializeTelegramWebApp(tg) {
           const item = document.createElement("div");
           item.className = "task-item";
           item.innerHTML = `
-            <h3>${quest.title} (<span class="points">${quest.points_reward} BP</span>)</h3>
+            <h3>${quest.title} <span class="points">${quest.points_reward} BP</span></h3>
             <p>${quest.description}</p>
             ${
               quest.is_completed
-                ? `<button disabled>Completed</button>`
+                ? `<button disabled><i class="fas fa-check"></i> Completed</button>`
                 : `<button data-quest-id="${quest.id}" data-url="${questData.url ||
                     "#"}" data-chat-id="${questData.chatId || ""}" class="join-btn">Join</button>
                    <button data-quest-id="${quest.id}" data-chat-id="${questData.chatId ||
@@ -361,7 +365,7 @@ async function initializeTelegramWebApp(tg) {
   
               try {
                 if (!chatId) {
-                  // If no chatId (e.g. Twitter quiz), just mark complete
+                  // If no chatId (e.g. Twitter), just mark complete
                   const result = await apiRequest("/quests/complete", "POST", {
                     questId
                   });
