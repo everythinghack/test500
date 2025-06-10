@@ -649,6 +649,107 @@ app.get("/api/admin/quests", (req, res) => {
   });
 });
 
+// Debug referral system - simpler version
+app.get("/api/debug/referrals", (req, res) => {
+  db.all("SELECT telegram_id, username, first_name, referrer_id, points, created_at FROM Users ORDER BY created_at DESC", (err, users) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    db.all("SELECT * FROM PendingReferrals ORDER BY timestamp DESC", (err2, pending) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      
+      // Find specific user 1170425263
+      const yourUser = users.find(u => u.telegram_id === '1170425263');
+      const yourReferrals = users.filter(u => u.referrer_id === '1170425263');
+      const pendingForYou = pending.filter(p => p.referrer_telegram_id === '1170425263');
+      
+      res.json({
+        total_users: users.length,
+        your_user: yourUser || "NOT_FOUND",
+        your_referrals: yourReferrals,
+        pending_for_you: pendingForYou,
+        all_users: users,
+        all_pending: pending,
+        environment: process.env.NODE_ENV || 'development'
+      });
+    });
+  });
+});
+
+
+// Comprehensive referral debug endpoint
+app.get("/api/check-referrals", (req, res) => {
+  const targetUserId = req.query.userId || '1170425263';
+  
+  Promise.all([
+    // Check if target user exists
+    new Promise((resolve, reject) => {
+      db.get("SELECT * FROM Users WHERE telegram_id = ?", [targetUserId], (err, row) => {
+        err ? reject(err) : resolve(row);
+      });
+    }),
+    // Get referrals for target user
+    new Promise((resolve, reject) => {
+      db.all("SELECT * FROM Users WHERE referrer_id = ?", [targetUserId], (err, rows) => {
+        err ? reject(err) : resolve(rows);
+      });
+    }),
+    // Get pending referrals for target user
+    new Promise((resolve, reject) => {
+      db.all("SELECT * FROM PendingReferrals WHERE referrer_telegram_id = ?", [targetUserId], (err, rows) => {
+        err ? reject(err) : resolve(rows);
+      });
+    }),
+    // Get all users (limited to last 20)
+    new Promise((resolve, reject) => {
+      db.all("SELECT telegram_id, username, first_name, referrer_id, points, created_at FROM Users ORDER BY created_at DESC LIMIT 20", (err, rows) => {
+        err ? reject(err) : resolve(rows);
+      });
+    }),
+    // Get all pending referrals
+    new Promise((resolve, reject) => {
+      db.all("SELECT * FROM PendingReferrals ORDER BY timestamp DESC LIMIT 10", (err, rows) => {
+        err ? reject(err) : resolve(rows);
+      });
+    })
+  ]).then(([targetUser, userReferrals, userPending, allUsers, allPending]) => {
+    
+    // Analyze the referral system
+    const analysis = {
+      target_user_found: !!targetUser,
+      target_user: targetUser,
+      target_user_referrals: userReferrals,
+      target_user_pending: userPending,
+      total_users_in_db: allUsers.length,
+      recent_users: allUsers,
+      all_pending_referrals: allPending,
+      
+      // Potential issues
+      potential_issues: [],
+      recommendations: []
+    };
+    
+    // Check for issues
+    if (!targetUser) {
+      analysis.potential_issues.push(`User ${targetUserId} not found in database`);
+      analysis.recommendations.push("User needs to open Mini App first via bot");
+    }
+    
+    if (targetUser && userReferrals.length === 0 && userPending.length === 0) {
+      analysis.potential_issues.push("No referrals or pending referrals found");
+      analysis.recommendations.push("Check if friends actually clicked the referral link and opened the Mini App");
+    }
+    
+    if (userPending.length > 0) {
+      analysis.potential_issues.push("Pending referrals exist but not processed");
+      analysis.recommendations.push("Check if referred users have opened the Mini App");
+    }
+    
+    res.json(analysis);
+    
+  }).catch(err => {
+    res.status(500).json({ error: err.message });
+  });
+});
 
 app.post("/api/admin/quests/:id/toggle", (req, res) => {
   const questId = parseInt(req.params.id, 10);
