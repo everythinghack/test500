@@ -6,7 +6,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
-const { db, initDb, addPoints } = require('./database');
+const { db, initDb, addPoints, getCurrentEventDay } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -520,28 +520,54 @@ app.post("/api/profile/uid", ensureUser, (req, res) => {
 });
 
 app.get("/api/quests", ensureUser, (req, res) => {
-  db.all(
-    `
-      SELECT 
-        q.id, 
-        q.title, 
-        q.description, 
-        q.points_reward, 
-        q.type, 
-        q.quest_data,
-        CASE WHEN uq.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_completed
-      FROM Quests q
-      LEFT JOIN UserQuests uq 
-        ON q.id = uq.quest_id 
-        AND uq.user_id = ?
-      WHERE q.is_active = TRUE
-    `,
-    [req.user.telegram_id],
-    (err, quests) => {
-      if (err) return res.status(500).json({ error: err.message });
-      return res.json(quests || []);
+  getCurrentEventDay((err, currentDay) => {
+    if (err) {
+      console.error("Error getting current event day:", err);
+      return res.status(500).json({ error: "Failed to get event status" });
     }
-  );
+
+    db.all(
+      `
+        SELECT 
+          q.id, 
+          q.title, 
+          q.description, 
+          q.points_reward, 
+          q.type, 
+          q.quest_data,
+          q.day_number,
+          CASE WHEN uq.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_completed,
+          CASE 
+            WHEN q.type = 'daily' AND q.day_number <= ? THEN 1
+            WHEN q.type != 'daily' THEN 1
+            ELSE 0
+          END AS is_available
+        FROM Quests q
+        LEFT JOIN UserQuests uq 
+          ON q.id = uq.quest_id 
+          AND uq.user_id = ?
+        WHERE q.is_active = TRUE
+        ORDER BY 
+          CASE q.type 
+            WHEN 'daily' THEN q.day_number 
+            ELSE 999 
+          END,
+          q.id
+      `,
+      [currentDay, req.user.telegram_id],
+      (err, quests) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Add event info to response
+        const response = {
+          current_day: currentDay,
+          quests: quests || []
+        };
+        
+        return res.json(response);
+      }
+    );
+  });
 });
 
 app.post("/api/quests/complete", ensureUser, (req, res) => {
@@ -554,53 +580,81 @@ app.post("/api/quests/complete", ensureUser, (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!quest) return res.status(404).json({ error: "Quest not found or not active." });
 
-      db.get(
-        `SELECT * FROM UserQuests WHERE user_id = ? AND quest_id = ?`,
-        [req.user.telegram_id, questId],
-        (completedErr, completed) => {
-          if (completedErr) return res.status(500).json({ error: completedErr.message });
-          if (completed) return res.status(400).json({ error: "Quest already completed." });
-
-          if (quest.type === "qa") {
-            const questData = JSON.parse(quest.quest_data || "{}");
-            if (!answer || answer.toLowerCase() !== questData.answer?.toLowerCase()) {
-              return res.status(400).json({ error: "Incorrect answer." });
-            }
+      // Check if quest is available (for daily quests)
+      if (quest.type === 'daily') {
+        getCurrentEventDay((dayErr, currentDay) => {
+          if (dayErr) {
+            return res.status(500).json({ error: "Failed to check quest availability." });
           }
+          
+          if (quest.day_number > currentDay) {
+            return res.status(400).json({ 
+              error: `This quest will be available on Day ${quest.day_number}. Currently it's Day ${currentDay}.` 
+            });
+          }
+          
+          processQuestCompletion();
+        });
+      } else {
+        processQuestCompletion();
+      }
 
-          addPoints(
-            req.user.telegram_id,
-            quest.points_reward,
-            `quest_completion_${quest.type}`,
-            quest.id,
-            null,
-            (addPointsErr) => {
-              if (addPointsErr) {
-                return res
-                  .status(500)
-                  .json({ error: `Failed to add points: ${addPointsErr.message}` });
+      function processQuestCompletion() {
+        db.get(
+          `SELECT * FROM UserQuests WHERE user_id = ? AND quest_id = ?`,
+          [req.user.telegram_id, questId],
+          (completedErr, completed) => {
+            if (completedErr) return res.status(500).json({ error: completedErr.message });
+            if (completed) return res.status(400).json({ error: "Quest already completed." });
+
+            // Check answer for Q&A and daily quests
+            if (quest.type === "qa" || quest.type === "daily") {
+              const questData = JSON.parse(quest.quest_data || "{}");
+              if (!answer || answer.toLowerCase().trim() !== questData.answer?.toLowerCase().trim()) {
+                return res.status(400).json({ error: "Incorrect answer. Try again!" });
               }
-
-              db.run(
-                `INSERT INTO UserQuests (user_id, quest_id) VALUES (?, ?)`,
-                [req.user.telegram_id, questId],
-                function (markErr) {
-                  if (markErr) {
-                    return res
-                      .status(500)
-                      .json({ error: `Failed to mark quest as completed: ${markErr.message}` });
-                  }
-                  return res.json({
-                    success: true,
-                    message: "Quest completed!",
-                    points_earned: quest.points_reward,
-                  });
-                }
-              );
             }
-          );
-        }
-      );
+
+            addPoints(
+              req.user.telegram_id,
+              quest.points_reward,
+              `quest_completion_${quest.type}`,
+              quest.id,
+              null,
+              (addPointsErr) => {
+                if (addPointsErr) {
+                  return res
+                    .status(500)
+                    .json({ error: `Failed to add points: ${addPointsErr.message}` });
+                }
+
+                db.run(
+                  `INSERT INTO UserQuests (user_id, quest_id) VALUES (?, ?)`,
+                  [req.user.telegram_id, questId],
+                  function (markErr) {
+                    if (markErr) {
+                      return res
+                        .status(500)
+                        .json({ error: `Failed to mark quest as completed: ${markErr.message}` });
+                    }
+                    
+                    let message = "Quest completed!";
+                    if (quest.type === 'daily') {
+                      message = `Day ${quest.day_number} quest completed! 🎉`;
+                    }
+                    
+                    return res.json({
+                      success: true,
+                      message: message,
+                      points_earned: quest.points_reward,
+                    });
+                  }
+                );
+              }
+            );
+          }
+        );
+      }
     }
   );
 });

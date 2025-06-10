@@ -61,9 +61,11 @@ const initDb = () => {
             title TEXT NOT NULL,
             description TEXT,
             points_reward INTEGER NOT NULL,
-            type TEXT CHECK(type IN ('qa', 'mcq', 'social_follow')) DEFAULT 'qa',
+            type TEXT CHECK(type IN ('qa', 'mcq', 'social_follow', 'daily')) DEFAULT 'qa',
             is_active BOOLEAN DEFAULT TRUE,
-            quest_data TEXT 
+            quest_data TEXT,
+            day_number INTEGER DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`);
 
         db.run(`CREATE TABLE IF NOT EXISTS UserQuests (
@@ -97,17 +99,28 @@ const initDb = () => {
             FOREIGN KEY (referrer_telegram_id) REFERENCES Users(telegram_id) ON DELETE CASCADE ON UPDATE CASCADE
         )`);
 
+        // Table for event configuration
+        db.run(`CREATE TABLE IF NOT EXISTS EventConfig (
+            id INTEGER PRIMARY KEY,
+            event_name TEXT,
+            start_date TIMESTAMP,
+            end_date TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+
         console.log('Database schema initialized (or already exists).');
 
         // =====================================
-        // QUEST MANAGEMENT SYSTEM
-        // Add new quests here - they will be safely added without affecting existing data
+        // BYBIT CITY DAILY QUEST SYSTEM
+        // Unlocks one quest per day at 00:00 UTC
         // =====================================
         
-        const questsToAdd = [
-            // ORIGINAL QUESTS (will be skipped if already exist)
+        // Initialize event configuration
+        initializeEventConfig();
+        
+        // Social follow quests (always available)
+        const socialQuests = [
             { 
-                id: 'join_telegram_1', 
                 title: 'Join Bybit Telegram', 
                 description: 'Join our official Telegram channel.', 
                 points_reward: 50, 
@@ -115,105 +128,178 @@ const initDb = () => {
                 quest_data: '{"url": "https://t.me/test3bybitG", "chatId": "-1002001387968"}' 
             },
             { 
-                id: 'follow_twitter_1', 
                 title: 'Follow Bybit on X', 
                 description: 'Follow our official X (Twitter) account.', 
                 points_reward: 50, 
                 type: 'social_follow', 
                 quest_data: '{"url": "https://twitter.com/bybit_official"}' 
-            },
-            { 
-                id: 'what_is_bybit_1', 
-                title: 'What is Bybit?', 
-                description: 'Answer this simple question.', 
-                points_reward: 20, 
-                type: 'qa', 
-                quest_data: '{"question": "What is Bybit?", "answer": "A crypto exchange"}' 
-            },
-            
-            // =====================================
-            // ADD YOUR NEW QUESTS BELOW THIS LINE
-            // Copy the template and modify as needed
-            // =====================================
-            
-            // Example Q&A Quest (uncomment to activate):
-            { 
-                id: 'crypto_quiz_1',
-                title: 'DeFi Knowledge Test', 
-                description: 'Test your knowledge about decentralized finance!', 
-                points_reward: 30, 
-                type: 'qa', 
-                quest_data: '{"question": "What does DeFi stand for?", "answer": "Decentralized Finance"}' 
-            },
-            
-            // Example Social Quest (uncomment to activate):
-            { 
-                id: 'instagram_follow_1',
-                title: 'Follow on Instagram', 
-                description: 'Follow our Instagram account for updates.', 
-                points_reward: 35, 
-                type: 'social_follow', 
-                quest_data: '{"url": "https://instagram.com/bybit_official"}' 
-            },
-            
-            // Example Advanced Q&A Quest:
-            { 
-                id: 'bitcoin_quiz_1',
-                title: 'Bitcoin Basics', 
-                description: 'Answer this question about Bitcoin.', 
-                points_reward: 25, 
-                type: 'qa', 
-                quest_data: '{"question": "What is the maximum supply of Bitcoin?", "answer": "21 million"}' 
             }
-            
-            // Template for adding more quests:
-            // { 
-            //     id: 'unique_quest_id',
-            //     title: 'Your Quest Title', 
-            //     description: 'What users need to do', 
-            //     points_reward: 50, 
-            //     type: 'qa', // or 'social_follow'
-            //     quest_data: '{"question": "Your question?", "answer": "Expected answer"}' // for Q&A
-            //     // quest_data: '{"url": "https://social.media/link"}' // for social
-            //     // quest_data: '{"url": "https://t.me/channel", "chatId": "-100123456"}' // for Telegram with verification
-            // }
         ];
-
-        // Safely add quests (only new ones)
-        addQuestsSafely(questsToAdd);
+        
+        // Daily quests for Bybit City (30 days)
+        const dailyQuests = [
+            { day: 1, title: 'Day 1: P2P', description: 'Learn about P2P trading', question: 'What does Bybit\'s P2P platform allow users to do?', answer: 'Trade crypto directly' },
+            { day: 2, title: 'Day 2: Launchpad', description: 'Discover new token launches', question: 'What is the main use of Bybit Launchpad?', answer: 'Token launches' },
+            { day: 3, title: 'Day 3: Puzzle Hunt', description: 'Join the puzzle hunt', question: 'What do users collect in Bybit Puzzle Hunt?', answer: 'Puzzle pieces' },
+            { day: 4, title: 'Day 4: Launchpool', description: 'Stake and earn rewards', question: 'What do users do in Launchpool to earn rewards?', answer: 'Stake tokens' },
+            { day: 5, title: 'Day 5: Copy Trading', description: 'Copy expert traders', question: 'What does Copy Trading on Bybit allow you to do?', answer: 'Copy experts' },
+            { day: 6, title: 'Day 6: Dual Asset', description: 'Understand dual asset investments', question: 'What determines the yield in Dual Asset?', answer: 'Price direction' },
+            { day: 7, title: 'Day 7: Bybit Card', description: 'Spend crypto anywhere', question: 'What can you do with the Bybit Card?', answer: 'Spend crypto' },
+            { day: 8, title: 'Day 8: Spot Trading', description: 'Trade tokens instantly', question: 'Where do you buy and sell tokens instantly?', answer: 'Spot market' },
+            { day: 9, title: 'Day 9: Derivatives', description: 'Advanced trading contracts', question: 'What kind of contracts can you trade on Derivatives?', answer: 'Perpetuals' },
+            { day: 10, title: 'Day 10: Futures Trading', description: 'Trade cryptocurrency futures', question: 'What type of trading involves contracts for future delivery?', answer: 'Futures trading' },
+            { day: 11, title: 'Day 11: Options Trading', description: 'Trade with options contracts', question: 'What gives you the right but not obligation to buy or sell?', answer: 'Options' },
+            { day: 12, title: 'Day 12: Margin Trading', description: 'Trade with borrowed funds', question: 'What allows you to trade with borrowed funds?', answer: 'Margin trading' },
+            { day: 13, title: 'Day 13: Grid Trading', description: 'Automated trading strategy', question: 'What trading bot places buy and sell orders automatically?', answer: 'Grid bot' },
+            { day: 14, title: 'Day 14: DCA Bot', description: 'Dollar cost averaging strategy', question: 'What strategy involves buying at regular intervals?', answer: 'Dollar cost averaging' },
+            { day: 15, title: 'Day 15: Yield Farming', description: 'Earn passive income', question: 'What do you do to earn rewards from liquidity provision?', answer: 'Yield farming' },
+            { day: 16, title: 'Day 16: Liquidity Mining', description: 'Provide liquidity for rewards', question: 'What do you provide to pools to earn mining rewards?', answer: 'Liquidity' },
+            { day: 17, title: 'Day 17: Staking Rewards', description: 'Stake tokens for rewards', question: 'What do you lock up to earn staking rewards?', answer: 'Tokens' },
+            { day: 18, title: 'Day 18: NFT Marketplace', description: 'Trade digital collectibles', question: 'What type of digital assets are traded on NFT marketplace?', answer: 'Non-fungible tokens' },
+            { day: 19, title: 'Day 19: Web3 Wallet', description: 'Manage your crypto assets', question: 'What wallet type gives you full control of private keys?', answer: 'Web3 wallet' },
+            { day: 20, title: 'Day 20: Cross Margin', description: 'Advanced margin trading', question: 'What margin type shares balance across all positions?', answer: 'Cross margin' },
+            { day: 21, title: 'Day 21: Isolated Margin', description: 'Individual position margin', question: 'What margin type limits risk to individual positions?', answer: 'Isolated margin' },
+            { day: 22, title: 'Day 22: Leverage Trading', description: 'Amplify your trading power', question: 'What multiplies your trading position size?', answer: 'Leverage' },
+            { day: 23, title: 'Day 23: Stop Loss', description: 'Risk management tool', question: 'What order type helps limit your losses?', answer: 'Stop loss' },
+            { day: 24, title: 'Day 24: Take Profit', description: 'Secure your gains', question: 'What order type automatically secures profits?', answer: 'Take profit' },
+            { day: 25, title: 'Day 25: Market Orders', description: 'Instant trade execution', question: 'What order type executes immediately at market price?', answer: 'Market order' },
+            { day: 26, title: 'Day 26: Limit Orders', description: 'Set your desired price', question: 'What order type executes only at specified price?', answer: 'Limit order' },
+            { day: 27, title: 'Day 27: API Trading', description: 'Algorithmic trading', question: 'What allows automated trading through programming?', answer: 'API trading' },
+            { day: 28, title: 'Day 28: Mobile Trading', description: 'Trade on the go', question: 'What allows you to trade from your phone?', answer: 'Mobile app' },
+            { day: 29, title: 'Day 29: Security Features', description: 'Keep your funds safe', question: 'What authentication method provides extra security?', answer: 'Two-factor authentication' },
+            { day: 30, title: 'Day 30: Bybit Ecosystem', description: 'Complete the journey', question: 'What makes Bybit a complete crypto platform?', answer: 'Full ecosystem' }
+        ];
+        
+        // Add social quests and daily quests
+        addSocialQuestsSafely(socialQuests);
+        addDailyQuestsSafely(dailyQuests);
     });
 };
 
-// Function to safely add quests without affecting existing data
-const addQuestsSafely = (questsToAdd) => {
-    console.log('QUEST_MANAGER: Checking for new quests to add...');
+// Initialize event configuration
+const initializeEventConfig = () => {
+    db.get("SELECT * FROM EventConfig WHERE id = 1", (err, config) => {
+        if (err) {
+            console.error("EVENT_CONFIG: Error checking config:", err);
+            return;
+        }
+        
+        if (!config) {
+            // Set event start date to today at 00:00 UTC
+            const startDate = new Date();
+            startDate.setUTCHours(0, 0, 0, 0);
+            
+            // Event lasts 30 days
+            const endDate = new Date(startDate);
+            endDate.setUTCDate(startDate.getUTCDate() + 30);
+            
+            db.run(
+                "INSERT INTO EventConfig (id, event_name, start_date, end_date) VALUES (1, 'Bybit City 30-Day Challenge', ?, ?)",
+                [startDate.toISOString(), endDate.toISOString()],
+                function(err) {
+                    if (err) {
+                        console.error("EVENT_CONFIG: Error creating config:", err);
+                    } else {
+                        console.log("EVENT_CONFIG: ✅ Event configuration created");
+                        console.log(`EVENT_CONFIG: Start: ${startDate.toISOString()}`);
+                        console.log(`EVENT_CONFIG: End: ${endDate.toISOString()}`);
+                    }
+                }
+            );
+        } else {
+            console.log("EVENT_CONFIG: Configuration already exists");
+            console.log(`EVENT_CONFIG: Event: ${config.event_name}`);
+            console.log(`EVENT_CONFIG: Start: ${config.start_date}`);
+            console.log(`EVENT_CONFIG: End: ${config.end_date}`);
+        }
+    });
+};
+
+// Function to add social quests
+const addSocialQuestsSafely = (socialQuests) => {
+    console.log('SOCIAL_QUESTS: Checking social quests...');
     
-    questsToAdd.forEach(quest => {
-        // Check if quest with this title already exists
+    socialQuests.forEach(quest => {
         db.get("SELECT id FROM Quests WHERE title = ?", [quest.title], (err, existingQuest) => {
             if (err) {
-                console.error(`QUEST_MANAGER: Error checking quest "${quest.title}":`, err);
+                console.error(`SOCIAL_QUESTS: Error checking "${quest.title}":`, err);
                 return;
             }
             
             if (existingQuest) {
-                console.log(`QUEST_MANAGER: Quest "${quest.title}" already exists, skipping...`);
+                console.log(`SOCIAL_QUESTS: "${quest.title}" already exists, skipping...`);
                 return;
             }
             
-            // Quest doesn't exist, add it
             db.run(
                 "INSERT INTO Quests (title, description, points_reward, type, quest_data, is_active) VALUES (?, ?, ?, ?, ?, TRUE)",
                 [quest.title, quest.description, quest.points_reward, quest.type, quest.quest_data],
                 function(err) {
                     if (err) {
-                        console.error(`QUEST_MANAGER: Error adding quest "${quest.title}":`, err);
+                        console.error(`SOCIAL_QUESTS: Error adding "${quest.title}":`, err);
                     } else {
-                        console.log(`QUEST_MANAGER: ✅ Added new quest "${quest.title}" (ID: ${this.lastID})`);
+                        console.log(`SOCIAL_QUESTS: ✅ Added "${quest.title}" (ID: ${this.lastID})`);
                     }
                 }
             );
         });
+    });
+};
+
+// Function to add daily quests
+const addDailyQuestsSafely = (dailyQuests) => {
+    console.log('DAILY_QUESTS: Checking daily quests...');
+    
+    dailyQuests.forEach(quest => {
+        db.get("SELECT id FROM Quests WHERE title = ?", [quest.title], (err, existingQuest) => {
+            if (err) {
+                console.error(`DAILY_QUESTS: Error checking "${quest.title}":`, err);
+                return;
+            }
+            
+            if (existingQuest) {
+                console.log(`DAILY_QUESTS: "${quest.title}" already exists, skipping...`);
+                return;
+            }
+            
+            const questData = JSON.stringify({
+                question: quest.question,
+                answer: quest.answer
+            });
+            
+            db.run(
+                "INSERT INTO Quests (title, description, points_reward, type, quest_data, day_number, is_active) VALUES (?, ?, ?, ?, ?, ?, TRUE)",
+                [quest.title, quest.description, 20, 'daily', questData, quest.day],
+                function(err) {
+                    if (err) {
+                        console.error(`DAILY_QUESTS: Error adding "${quest.title}":`, err);
+                    } else {
+                        console.log(`DAILY_QUESTS: ✅ Added "${quest.title}" (Day ${quest.day}, ID: ${this.lastID})`);
+                    }
+                }
+            );
+        });
+    });
+};
+
+// Function to get current day of event (1-30)
+const getCurrentEventDay = (callback) => {
+    db.get("SELECT start_date FROM EventConfig WHERE id = 1", (err, config) => {
+        if (err || !config) {
+            return callback(err || new Error("Event config not found"), null);
+        }
+        
+        const startDate = new Date(config.start_date);
+        const currentDate = new Date();
+        
+        // Calculate days since start (starting from day 1)
+        const timeDiff = currentDate.getTime() - startDate.getTime();
+        const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
+        
+        // Event is 30 days, cap at day 30
+        const eventDay = Math.min(Math.max(daysDiff, 1), 30);
+        
+        callback(null, eventDay);
     });
 };
 
@@ -280,7 +366,7 @@ const addPoints = (userId, points, reason, relatedQuestId = null, relatedReferre
 };
 
 
-module.exports = { db, initDb, addPoints };
+module.exports = { db, initDb, addPoints, getCurrentEventDay };
 
 
 

@@ -475,5 +475,68 @@ main {
     margin-right: 5px;
 }
 
+/* Daily Quest System Styling */
+.event-status {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.event-status h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.3em;
+}
+
+.event-status p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.day-badge {
+    background: #ff6b6b;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    margin-left: 10px;
+}
+
+.task-item.completed {
+    background: rgba(40, 167, 69, 0.1);
+    border-left: 4px solid #28a745;
+    opacity: 0.8;
+}
+
+.task-item.available {
+    background: rgba(255, 193, 7, 0.1);
+    border-left: 4px solid #ffc107;
+}
+
+.task-item.locked {
+    background: rgba(108, 117, 125, 0.1);
+    border-left: 4px solid #6c757d;
+    opacity: 0.6;
+}
+
+.task-item.locked button {
+    background: #6c757d !important;
+    cursor: not-allowed;
+}
+
+.question {
+    background: rgba(33, 150, 243, 0.1);
+    padding: 10px;
+    border-radius: 8px;
+    margin: 10px 0;
+    border-left: 3px solid #2196f3;
+}
+
+.question strong {
+    color: #2196f3;
+}
+
 
 

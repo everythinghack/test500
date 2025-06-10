@@ -202,37 +202,67 @@ async function initializeTelegramWebApp(tg) {
   
     async function loadQuestPage() {
       const questList = document.getElementById("quest-list");
-      questList.innerHTML = "<p>Loading construction projects...</p>";
+      questList.innerHTML = "<p>Loading daily quests...</p>";
   
       try {
-        const quests = await apiRequest("/quests");
-        const qaQuests = quests.filter((q) => q.type === "qa");
+        const response = await apiRequest("/quests");
+        const currentDay = response.current_day;
+        const quests = response.quests || [];
+        
+        // Filter for daily and qa quests
+        const dailyQuests = quests.filter((q) => q.type === "daily" || q.type === "qa");
   
-        if (qaQuests.length === 0) {
+        if (dailyQuests.length === 0) {
           questList.innerHTML =
-            "<p>No construction projects available at the moment.</p>";
+            "<p>No quests available at the moment.</p>";
           return;
         }
   
-        questList.innerHTML = "";
+        questList.innerHTML = `
+          <div class="event-status">
+            <h3>🏙️ Bybit City 30-Day Challenge</h3>
+            <p><strong>Day ${currentDay}/30</strong> • Complete daily quests to build the city!</p>
+          </div>
+        `;
   
-        qaQuests.forEach((quest) => {
+        dailyQuests.forEach((quest) => {
           const questData = JSON.parse(quest.quest_data || "{}");
           const item = document.createElement("div");
-          item.className = "task-item";
+          
+          // Different styling based on quest status
+          if (quest.is_completed) {
+            item.className = "task-item completed";
+          } else if (quest.is_available) {
+            item.className = "task-item available";
+          } else {
+            item.className = "task-item locked";
+          }
+          
+          let statusHtml = "";
+          if (quest.is_completed) {
+            statusHtml = `<button disabled><i class="fas fa-check"></i> Completed</button>`;
+          } else if (quest.is_available) {
+            statusHtml = `
+              <input type="text" placeholder="Your answer" class="quest-answer-input">
+              <button data-quest-id="${quest.id}" class="submit-answer-btn">Submit Answer</button>
+            `;
+          } else {
+            statusHtml = `<button disabled><i class="fas fa-lock"></i> Available on Day ${quest.day_number}</button>`;
+          }
+          
           item.innerHTML = `
-            <h3>${quest.title} <span class="points">${quest.points_reward} BP</span></h3>
+            <h3>
+              ${quest.title} 
+              <span class="points">${quest.points_reward} BP</span>
+              ${quest.type === 'daily' ? `<span class="day-badge">Day ${quest.day_number}</span>` : ''}
+            </h3>
             <p>${quest.description}</p>
-            ${
-              quest.is_completed
-                ? `<button disabled><i class="fas fa-check"></i> Completed</button>`
-                : `<input type="text" placeholder="Your answer" class="quest-answer-input">
-                   <button data-quest-id="${quest.id}" class="submit-answer-btn">Submit</button>`
-            }
+            ${questData.question ? `<p class="question"><strong>Question:</strong> ${questData.question}</p>` : ''}
+            ${statusHtml}
           `;
           questList.appendChild(item);
   
-          if (!quest.is_completed) {
+          if (!quest.is_completed && quest.is_available) {
             const button = item.querySelector(".submit-answer-btn");
             const input = item.querySelector(".quest-answer-input");
   
@@ -244,6 +274,8 @@ async function initializeTelegramWebApp(tg) {
               }
   
               button.disabled = true;
+              button.textContent = "Submitting...";
+              
               try {
                 const result = await apiRequest("/quests/complete", "POST", {
                   questId: quest.id,
@@ -256,11 +288,13 @@ async function initializeTelegramWebApp(tg) {
                 } else {
                   tg.showAlert("❌ " + (result.error || "Answer incorrect"));
                   button.disabled = false;
+                  button.textContent = "Submit Answer";
                 }
               } catch (err) {
                 console.error("APP_JS: Error submitting quest:", err);
                 tg.showAlert("Submission failed. Check console.");
                 button.disabled = false;
+                button.textContent = "Submit Answer";
               }
             });
           }
@@ -268,7 +302,7 @@ async function initializeTelegramWebApp(tg) {
       } catch (error) {
         console.error("APP_JS: Could not load quests:", error);
         questList.innerHTML =
-          "<p>Could not load construction projects. Please try refreshing.</p>";
+          "<p>Could not load quests. Please try refreshing.</p>";
       }
     }
   
