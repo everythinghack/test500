@@ -641,6 +641,34 @@ app.get("/api/leaderboard", (req, res) => {
   );
 });
 
+// Quest management endpoint
+app.get("/api/admin/quests", (req, res) => {
+  db.all("SELECT * FROM Quests ORDER BY id", (err, quests) => {
+    if (err) return res.status(500).json({ error: err.message });
+    return res.json(quests || []);
+  });
+});
+
+app.post("/api/admin/quests/:id/toggle", (req, res) => {
+  const questId = parseInt(req.params.id, 10);
+  
+  db.get("SELECT is_active FROM Quests WHERE id = ?", [questId], (err, quest) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!quest) return res.status(404).json({ error: "Quest not found" });
+    
+    const newStatus = quest.is_active ? 0 : 1;
+    db.run("UPDATE Quests SET is_active = ? WHERE id = ?", [newStatus, questId], function(updateErr) {
+      if (updateErr) return res.status(500).json({ error: updateErr.message });
+      return res.json({ 
+        success: true, 
+        message: `Quest ${newStatus ? 'activated' : 'deactivated'}`,
+        quest_id: questId,
+        is_active: newStatus === 1
+      });
+    });
+  });
+});
+
 //
 // Verify if user is a member of a Telegram channel/group
 //

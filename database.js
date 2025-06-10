@@ -106,11 +106,25 @@ const initDb = () => {
             { title: 'What is Bybit?', description: 'Answer this simple question.', points_reward: 20, type: 'qa', quest_data: '{"question": "What is Bybit?", "answer": "A crypto exchange"}' }
         ];
 
-        const stmt = db.prepare("INSERT OR IGNORE INTO Quests (title, description, points_reward, type, quest_data) VALUES (?, ?, ?, ?, ?)");
-        sampleQuests.forEach(quest => {
-            stmt.run(quest.title, quest.description, quest.points_reward, quest.type, quest.quest_data);
+        // Check if quests already exist before adding
+        db.get("SELECT COUNT(*) as count FROM Quests", (err, result) => {
+            if (err) {
+                console.error("Error checking quest count:", err);
+                return;
+            }
+            
+            if (result.count > 0) {
+                console.log(`Sample quests already exist (${result.count} found). Skipping insertion.`);
+                return;
+            }
+            
+            console.log("Adding sample quests...");
+            const stmt = db.prepare("INSERT INTO Quests (title, description, points_reward, type, quest_data) VALUES (?, ?, ?, ?, ?)");
+            sampleQuests.forEach(quest => {
+                stmt.run(quest.title, quest.description, quest.points_reward, quest.type, quest.quest_data);
+            });
+            stmt.finalize(() => console.log('Sample quests added successfully.'));
         });
-        stmt.finalize(() => console.log('Sample quests added/verified.'));
     });
 };
 
