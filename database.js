@@ -99,31 +99,120 @@ const initDb = () => {
 
         console.log('Database schema initialized (or already exists).');
 
-        // Add some sample quests (run this only once or check if exists)
-        const sampleQuests = [
-            { title: 'Join Bybit Telegram', description: 'Join our official Telegram channel.', points_reward: 50, type: 'social_follow', quest_data: '{"url": "https://t.me/test3bybitG", "chatId": "-1002001387968"}' }, // Replace with your actual chat ID
-            { title: 'Follow Bybit on X', description: 'Follow our official X (Twitter) account.', points_reward: 50, type: 'social_follow', quest_data: '{"url": "https://twitter.com/bybit_official"}' },
-            { title: 'What is Bybit?', description: 'Answer this simple question.', points_reward: 20, type: 'qa', quest_data: '{"question": "What is Bybit?", "answer": "A crypto exchange"}' }
+        // =====================================
+        // QUEST MANAGEMENT SYSTEM
+        // Add new quests here - they will be safely added without affecting existing data
+        // =====================================
+        
+        const questsToAdd = [
+            // ORIGINAL QUESTS (will be skipped if already exist)
+            { 
+                id: 'join_telegram_1', 
+                title: 'Join Bybit Telegram', 
+                description: 'Join our official Telegram channel.', 
+                points_reward: 50, 
+                type: 'social_follow', 
+                quest_data: '{"url": "https://t.me/test3bybitG", "chatId": "-1002001387968"}' 
+            },
+            { 
+                id: 'follow_twitter_1', 
+                title: 'Follow Bybit on X', 
+                description: 'Follow our official X (Twitter) account.', 
+                points_reward: 50, 
+                type: 'social_follow', 
+                quest_data: '{"url": "https://twitter.com/bybit_official"}' 
+            },
+            { 
+                id: 'what_is_bybit_1', 
+                title: 'What is Bybit?', 
+                description: 'Answer this simple question.', 
+                points_reward: 20, 
+                type: 'qa', 
+                quest_data: '{"question": "What is Bybit?", "answer": "A crypto exchange"}' 
+            },
+            
+            // =====================================
+            // ADD YOUR NEW QUESTS BELOW THIS LINE
+            // Copy the template and modify as needed
+            // =====================================
+            
+            // Example Q&A Quest (uncomment to activate):
+            { 
+                id: 'crypto_quiz_1',
+                title: 'DeFi Knowledge Test', 
+                description: 'Test your knowledge about decentralized finance!', 
+                points_reward: 30, 
+                type: 'qa', 
+                quest_data: '{"question": "What does DeFi stand for?", "answer": "Decentralized Finance"}' 
+            },
+            
+            // Example Social Quest (uncomment to activate):
+            { 
+                id: 'instagram_follow_1',
+                title: 'Follow on Instagram', 
+                description: 'Follow our Instagram account for updates.', 
+                points_reward: 35, 
+                type: 'social_follow', 
+                quest_data: '{"url": "https://instagram.com/bybit_official"}' 
+            },
+            
+            // Example Advanced Q&A Quest:
+            { 
+                id: 'bitcoin_quiz_1',
+                title: 'Bitcoin Basics', 
+                description: 'Answer this question about Bitcoin.', 
+                points_reward: 25, 
+                type: 'qa', 
+                quest_data: '{"question": "What is the maximum supply of Bitcoin?", "answer": "21 million"}' 
+            }
+            
+            // Template for adding more quests:
+            // { 
+            //     id: 'unique_quest_id',
+            //     title: 'Your Quest Title', 
+            //     description: 'What users need to do', 
+            //     points_reward: 50, 
+            //     type: 'qa', // or 'social_follow'
+            //     quest_data: '{"question": "Your question?", "answer": "Expected answer"}' // for Q&A
+            //     // quest_data: '{"url": "https://social.media/link"}' // for social
+            //     // quest_data: '{"url": "https://t.me/channel", "chatId": "-100123456"}' // for Telegram with verification
+            // }
         ];
 
-        // Check if quests already exist before adding
-        db.get("SELECT COUNT(*) as count FROM Quests", (err, result) => {
+        // Safely add quests (only new ones)
+        addQuestsSafely(questsToAdd);
+    });
+};
+
+// Function to safely add quests without affecting existing data
+const addQuestsSafely = (questsToAdd) => {
+    console.log('QUEST_MANAGER: Checking for new quests to add...');
+    
+    questsToAdd.forEach(quest => {
+        // Check if quest with this title already exists
+        db.get("SELECT id FROM Quests WHERE title = ?", [quest.title], (err, existingQuest) => {
             if (err) {
-                console.error("Error checking quest count:", err);
+                console.error(`QUEST_MANAGER: Error checking quest "${quest.title}":`, err);
                 return;
             }
             
-            if (result.count > 0) {
-                console.log(`Sample quests already exist (${result.count} found). Skipping insertion.`);
+            if (existingQuest) {
+                console.log(`QUEST_MANAGER: Quest "${quest.title}" already exists, skipping...`);
                 return;
             }
             
-            console.log("Adding sample quests...");
-            const stmt = db.prepare("INSERT INTO Quests (title, description, points_reward, type, quest_data) VALUES (?, ?, ?, ?, ?)");
-            sampleQuests.forEach(quest => {
-                stmt.run(quest.title, quest.description, quest.points_reward, quest.type, quest.quest_data);
-            });
-            stmt.finalize(() => console.log('Sample quests added successfully.'));
+            // Quest doesn't exist, add it
+            db.run(
+                "INSERT INTO Quests (title, description, points_reward, type, quest_data, is_active) VALUES (?, ?, ?, ?, ?, TRUE)",
+                [quest.title, quest.description, quest.points_reward, quest.type, quest.quest_data],
+                function(err) {
+                    if (err) {
+                        console.error(`QUEST_MANAGER: Error adding quest "${quest.title}":`, err);
+                    } else {
+                        console.log(`QUEST_MANAGER: ✅ Added new quest "${quest.title}" (ID: ${this.lastID})`);
+                    }
+                }
+            );
         });
     });
 };
