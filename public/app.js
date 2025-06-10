@@ -76,7 +76,7 @@ async function initializeTelegramWebApp(tg) {
     // Use localhost for development, production URL for deployed version
     window.API_BASE_URL = window.location.hostname === 'localhost' 
       ? "http://localhost:8080"
-      : "https://bybit-event-mini-app-working-464578924371.asia-south1.run.app";
+      : "https://bybit-event-mini-app-production-ae87.up.railway.app";
   
     console.log("APP_JS: Attempting to initialize Telegram Web App...");
     let initResult;
