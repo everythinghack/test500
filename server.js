@@ -676,6 +676,8 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
   const chatId = req.body.chatId; // Telegram group/channel ID
   const userId = req.user.telegram_id;
 
+  console.log(`TELEGRAM_VERIFY: User ${userId} verifying membership in chat ${chatId}`);
+
   try {
     // Check if quest was already completed
     const alreadyCompleted = await new Promise((resolve, reject) => {
@@ -687,14 +689,46 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
     });
 
     if (alreadyCompleted) {
+      console.log(`TELEGRAM_VERIFY: User ${userId} already completed quest ${req.body.questId}`);
       return res.json({ success: true, message: "Already completed", alreadyVerified: true });
     }
 
     // Check membership status via Bot API
     if (!bot) {
+      console.error("TELEGRAM_VERIFY: Bot not configured");
       return res.status(503).json({ error: "Bot not configured for verification" });
     }
-    const chatMember = await bot.getChatMember(chatId, userId);
+
+    console.log(`TELEGRAM_VERIFY: Checking membership for user ${userId} in chat ${chatId}`);
+    
+    let chatMember;
+    try {
+      chatMember = await bot.getChatMember(chatId, userId);
+      console.log(`TELEGRAM_VERIFY: Got chat member status:`, chatMember);
+    } catch (telegramError) {
+      console.error(`TELEGRAM_VERIFY: Telegram API error:`, telegramError.message);
+      
+      // Provide specific error messages for different cases
+      if (telegramError.message.includes('chat not found')) {
+        return res.status(400).json({ 
+          error: "Chat verification failed", 
+          message: "Unable to verify membership. Please ensure the bot has access to the channel/group.",
+          debug: `Chat ID: ${chatId}, Bot may not be added to the group/channel` 
+        });
+      } else if (telegramError.message.includes('user not found')) {
+        return res.status(400).json({ 
+          error: "User verification failed", 
+          message: "Unable to verify your membership. Please try again.",
+          debug: `User ID: ${userId} not found in chat ${chatId}` 
+        });
+      } else {
+        return res.status(500).json({ 
+          error: "Verification error", 
+          message: "Unable to verify membership at this time. Please try again later.",
+          debug: telegramError.message 
+        });
+      }
+    }
 
     if (chatMember && ["member", "administrator", "creator"].includes(chatMember.status)) {
       // User is a member, award points for that quest
