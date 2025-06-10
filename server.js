@@ -20,7 +20,8 @@ initDb();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MINI_APP_URL =
   process.env.MINI_APP_URL ||
-  "http://localhost:8080";
+  process.env.RAILWAY_STATIC_URL ||
+  "https://bybit-event-mini-app-production-ae87.up.railway.app";
 
 // For local testing, allow running without bot token
 const IS_LOCAL = process.env.NODE_ENV !== 'production' && MINI_APP_URL.includes('localhost');
@@ -57,13 +58,18 @@ if (BOT_TOKEN) {
 // --- BOT WEBHOOK HANDLER ---
 //
 app.post("/api/telegram/webhook", express.json(), async (req, res) => {
+  console.log("WEBHOOK: Received request:", JSON.stringify(req.body, null, 2));
+  
   if (!bot) {
+    console.error("WEBHOOK: Bot not configured");
     return res.status(503).json({ error: "Bot not configured" });
   }
+  
   try {
     const update = req.body;
     const msg = update.message;
     if (!msg) {
+      console.log("WEBHOOK: No message in update, sending 200");
       return res.sendStatus(200);
     }
 
@@ -72,7 +78,7 @@ app.post("/api/telegram/webhook", express.json(), async (req, res) => {
     const commandParam = msg.text?.match(/\/start(?: (.+))?/)?.[1] || null;
 
     console.log(
-      `BOT: /start command. User: ${newUserId}, Chat: ${chatId}, Param: '${commandParam}'`
+      `BOT: /start command. User: ${newUserId}, Chat: ${chatId}, Param: '${commandParam}', MINI_APP_URL: '${MINI_APP_URL}'`
     );
 
     let referrerId = null;
@@ -166,8 +172,9 @@ app.post("/api/telegram/webhook", express.json(), async (req, res) => {
 
     return res.sendStatus(200);
   } catch (error) {
-    console.error("Error processing webhook:", error);
-    return res.status(500).send("Error processing webhook");
+    console.error("WEBHOOK: Error processing webhook:", error.message, error.stack);
+    // Always return 200 to Telegram to prevent retries
+    return res.sendStatus(200);
   }
 });
 
