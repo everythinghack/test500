@@ -458,5 +458,22 @@ main {
     pointer-events: none;
 }
 
+/* UID Notice Styling */
+.uid-notice {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    padding: 8px 12px;
+    background-color: rgba(247, 166, 0, 0.1);
+    border: 1px solid rgba(247, 166, 0, 0.3);
+    border-radius: 6px;
+    line-height: 1.4;
+}
+
+.uid-notice i {
+    color: var(--primary-color);
+    margin-right: 5px;
+}
+
 
 
