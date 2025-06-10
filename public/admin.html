@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quest Admin Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .quest-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .quest-active {
+            border-left: 4px solid #28a745;
+        }
+        .quest-inactive {
+            border-left: 4px solid #dc3545;
+            opacity: 0.7;
+        }
+        .result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Quest Admin Panel</h1>
+        
+        <h2>➕ Add New Quest</h2>
+        <form id="addQuestForm">
+            <div class="form-group">
+                <label for="title">Quest Title:</label>
+                <input type="text" id="title" required placeholder="e.g., Join Our Discord">
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description:</label>
+                <textarea id="description" required placeholder="Describe what users need to do"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="points">Points Reward:</label>
+                <input type="number" id="points" required placeholder="50" min="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="type">Quest Type:</label>
+                <select id="type" required onchange="toggleQuestData()">
+                    <option value="">Select Type</option>
+                    <option value="qa">Q&A Quest</option>
+                    <option value="social_follow">Social Follow Quest</option>
+                </select>
+            </div>
+            
+            <div id="qaData" style="display: none;">
+                <div class="form-group">
+                    <label for="question">Question:</label>
+                    <input type="text" id="question" placeholder="What is Bybit?">
+                </div>
+                <div class="form-group">
+                    <label for="answer">Answer (case insensitive):</label>
+                    <input type="text" id="answer" placeholder="A crypto exchange">
+                </div>
+            </div>
+            
+            <div id="socialData" style="display: none;">
+                <div class="form-group">
+                    <label for="url">Social Media URL:</label>
+                    <input type="url" id="url" placeholder="https://twitter.com/bybit_official">
+                </div>
+                <div class="form-group">
+                    <label for="chatId">Telegram Chat ID (optional):</label>
+                    <input type="text" id="chatId" placeholder="-1002001387968">
+                    <small>Only for Telegram channels/groups that need verification</small>
+                </div>
+            </div>
+            
+            <button type="submit">Add Quest</button>
+        </form>
+        
+        <div id="result"></div>
+    </div>
+    
+    <div class="container">
+        <h2>📋 Current Quests</h2>
+        <button onclick="loadQuests()">Refresh Quests</button>
+        <div id="questsList"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function toggleQuestData() {
+            const type = document.getElementById('type').value;
+            const qaData = document.getElementById('qaData');
+            const socialData = document.getElementById('socialData');
+            
+            qaData.style.display = type === 'qa' ? 'block' : 'none';
+            socialData.style.display = type === 'social_follow' ? 'block' : 'none';
+        }
+
+        function showResult(message, isError = false) {
+            const result = document.getElementById('result');
+            result.innerHTML = `<div class="result ${isError ? 'error' : 'success'}">${message}</div>`;
+            setTimeout(() => result.innerHTML = '', 5000);
+        }
+
+        document.getElementById('addQuestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                points_reward: parseInt(document.getElementById('points').value),
+                type: document.getElementById('type').value
+            };
+            
+            // Build quest_data based on type
+            let questData = {};
+            if (formData.type === 'qa') {
+                questData = {
+                    question: document.getElementById('question').value,
+                    answer: document.getElementById('answer').value
+                };
+            } else if (formData.type === 'social_follow') {
+                questData = {
+                    url: document.getElementById('url').value
+                };
+                const chatId = document.getElementById('chatId').value;
+                if (chatId) {
+                    questData.chatId = chatId;
+                }
+            }
+            
+            formData.quest_data = JSON.stringify(questData);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/add-quest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(`✅ Quest "${formData.title}" added successfully!`);
+                    document.getElementById('addQuestForm').reset();
+                    toggleQuestData();
+                    loadQuests();
+                } else {
+                    showResult(`❌ Error: ${result.error}`, true);
+                }
+            } catch (error) {
+                showResult(`❌ Network error: ${error.message}`, true);
+            }
+        });
+
+        async function loadQuests() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/quests`);
+                const quests = await response.json();
+                
+                const questsList = document.getElementById('questsList');
+                
+                if (quests.length === 0) {
+                    questsList.innerHTML = '<p>No quests found.</p>';
+                    return;
+                }
+                
+                questsList.innerHTML = quests.map(quest => `
+                    <div class="quest-item ${quest.is_active ? 'quest-active' : 'quest-inactive'}">
+                        <h3>${quest.title} (${quest.points_reward} points)</h3>
+                        <p><strong>Type:</strong> ${quest.type}</p>
+                        <p><strong>Description:</strong> ${quest.description}</p>
+                        <p><strong>Status:</strong> ${quest.is_active ? '✅ Active' : '❌ Inactive'}</p>
+                        <button onclick="toggleQuest(${quest.id})">${quest.is_active ? 'Deactivate' : 'Activate'}</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('questsList').innerHTML = `<p>Error loading quests: ${error.message}</p>`;
+            }
+        }
+
+        async function toggleQuest(questId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/quests/${questId}/toggle`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(`✅ ${result.message}`);
+                    loadQuests();
+                } else {
+                    showResult(`❌ Error: ${result.error}`, true);
+                }
+            } catch (error) {
+                showResult(`❌ Network error: ${error.message}`, true);
+            }
+        }
+
+        // Load quests on page load
+        loadQuests();
+    </script>
+</body>
+</html>

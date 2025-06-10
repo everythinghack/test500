@@ -828,6 +828,44 @@ app.post("/api/debug/test-webhook", (req, res) => {
   });
 });
 
+// Add new quest endpoint
+app.post("/api/admin/add-quest", (req, res) => {
+  const { title, description, points_reward, type, quest_data } = req.body;
+  
+  // Validate required fields
+  if (!title || !description || !points_reward || !type) {
+    return res.status(400).json({ 
+      error: "Missing required fields: title, description, points_reward, type" 
+    });
+  }
+  
+  // Validate quest type
+  if (!['qa', 'social_follow'].includes(type)) {
+    return res.status(400).json({ 
+      error: "type must be 'qa' or 'social_follow'" 
+    });
+  }
+  
+  // Insert new quest
+  db.run(
+    `INSERT INTO Quests (title, description, points_reward, type, quest_data, is_active) 
+     VALUES (?, ?, ?, ?, ?, TRUE)`,
+    [title, description, points_reward, type, quest_data || '{}'],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      res.json({
+        success: true,
+        message: "Quest added successfully",
+        quest_id: this.lastID,
+        quest: { title, description, points_reward, type }
+      });
+    }
+  );
+});
+
 app.post("/api/admin/quests/:id/toggle", (req, res) => {
   const questId = parseInt(req.params.id, 10);
   
