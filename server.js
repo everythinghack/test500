@@ -946,6 +946,125 @@ app.post("/api/admin/nuclear-cleanup", (req, res) => {
   });
 });
 
+// TESTING: Delete ALL quests to test frontend updates
+app.post("/api/admin/delete-all-quests", (req, res) => {
+  console.log("ADMIN: TESTING - Deleting ALL quests to test frontend updates");
+  
+  db.all("SELECT * FROM Quests", (err, allQuests) => {
+    if (err) {
+      console.error("ADMIN: Error fetching quests:", err);
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (allQuests.length === 0) {
+      return res.json({
+        success: true,
+        message: "No quests to delete",
+        deleted_count: 0
+      });
+    }
+    
+    console.log(`ADMIN: Deleting ALL ${allQuests.length} quests for testing`);
+    
+    // Delete all UserQuests first, then all Quests
+    db.run("DELETE FROM UserQuests", (err) => {
+      if (err) {
+        console.error("ADMIN: Error deleting UserQuests:", err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      db.run("DELETE FROM Quests", function(err) {
+        if (err) {
+          console.error("ADMIN: Error deleting Quests:", err);
+          return res.status(500).json({ error: err.message });
+        }
+        
+        console.log(`ADMIN: Successfully deleted all quests. Deleted: ${allQuests.length}`);
+        res.json({
+          success: true,
+          message: `Deleted ALL ${allQuests.length} quests for testing`,
+          deleted_count: allQuests.length,
+          deleted_quests: allQuests.map(q => ({ id: q.id, title: q.title }))
+        });
+      });
+    });
+  });
+});
+
+// RESTORE: Add back the 3 main quests
+app.post("/api/admin/restore-main-quests", (req, res) => {
+  console.log("ADMIN: Restoring the 3 main quests");
+  
+  const mainQuests = [
+    {
+      title: 'Join Bybit Telegram',
+      description: 'Join our official Telegram channel.',
+      points_reward: 50,
+      type: 'social_follow',
+      quest_data: '{"url": "https://t.me/test3bybitG", "chatId": "-1002001387968"}'
+    },
+    {
+      title: 'Follow Bybit on X',
+      description: 'Follow our official X (Twitter) account.',
+      points_reward: 50,
+      type: 'social_follow',
+      quest_data: '{"url": "https://twitter.com/bybit_official"}'
+    },
+    {
+      title: 'What is Bybit?',
+      description: 'Answer this simple question.',
+      points_reward: 20,
+      type: 'qa',
+      quest_data: '{"question": "What is Bybit?", "answer": "A crypto exchange"}'
+    }
+  ];
+  
+  // Check if quests already exist
+  db.get("SELECT COUNT(*) as count FROM Quests", (err, result) => {
+    if (err) {
+      console.error("ADMIN: Error checking quest count:", err);
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (result.count > 0) {
+      return res.json({
+        success: false,
+        message: `Quests already exist (${result.count} found). Delete them first if needed.`,
+        existing_count: result.count
+      });
+    }
+    
+    console.log("ADMIN: Adding 3 main quests...");
+    const stmt = db.prepare("INSERT INTO Quests (title, description, points_reward, type, quest_data) VALUES (?, ?, ?, ?, ?)");
+    
+    let insertedCount = 0;
+    mainQuests.forEach(quest => {
+      stmt.run(quest.title, quest.description, quest.points_reward, quest.type, quest.quest_data, function(err) {
+        if (err) {
+          console.error("ADMIN: Error inserting quest:", err);
+        } else {
+          insertedCount++;
+          console.log(`ADMIN: Inserted quest: ${quest.title} (ID: ${this.lastID})`);
+        }
+      });
+    });
+    
+    stmt.finalize((err) => {
+      if (err) {
+        console.error("ADMIN: Error finalizing statement:", err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      console.log(`ADMIN: Successfully restored ${mainQuests.length} main quests`);
+      res.json({
+        success: true,
+        message: `Restored ${mainQuests.length} main quests`,
+        restored_quests: mainQuests.map(q => q.title)
+      });
+    });
+  });
+});
+
 //
 // Verify if user is a member of a Telegram channel/group
 //
