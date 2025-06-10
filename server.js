@@ -174,33 +174,30 @@ app.post("/api/telegram/webhook", express.json(), async (req, res) => {
       );
     });
 
-    if (!userExists) {
-      console.log(`WEBHOOK: User ${newUserId} is new, sending welcome message...`);
-      
-      // Only send welcome message if user is new
-      const message = "Click below to open the Bybit Event App:";
-      const options = {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🚀 Open Event App", web_app: { url: MINI_APP_URL } }],
-          ],
-        },
-      };
-      
-      try {
-        if (bot) {
-          console.log(`WEBHOOK: Sending message to chat ${chatId} with MINI_APP_URL: ${MINI_APP_URL}`);
-          await bot.sendMessage(chatId, message, options);
-          console.log(`WEBHOOK: ✅ Successfully sent welcome message to user ${newUserId}`);
-        } else {
-          console.error(`WEBHOOK: Bot instance not available`);
-        }
-      } catch (sendError) {
-        console.error(`WEBHOOK: Error sending message to ${chatId}:`, sendError.message, sendError.stack);
-        // Don't throw error, just log it
+    // Send app link to both new and existing users
+    const message = userExists 
+      ? "Welcome back! Click below to open the Bybit Event App:"
+      : "Welcome! Click below to open the Bybit Event App:";
+    
+    const options = {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🚀 Open Event App", web_app: { url: MINI_APP_URL } }],
+        ],
+      },
+    };
+    
+    try {
+      if (bot) {
+        console.log(`WEBHOOK: Sending message to chat ${chatId} with MINI_APP_URL: ${MINI_APP_URL}`);
+        await bot.sendMessage(chatId, message, options);
+        console.log(`WEBHOOK: ✅ Successfully sent message to ${userExists ? 'existing' : 'new'} user ${newUserId}`);
+      } else {
+        console.error(`WEBHOOK: Bot instance not available`);
       }
-    } else {
-      console.log(`WEBHOOK: User ${newUserId} already exists, skipping welcome message`);
+    } catch (sendError) {
+      console.error(`WEBHOOK: Error sending message to ${chatId}:`, sendError.message, sendError.stack);
+      // Don't throw error, just log it
     }
 
     return res.sendStatus(200);
