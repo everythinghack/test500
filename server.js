@@ -1234,6 +1234,7 @@ if (bot) {
 app.get("/api/referrals", ensureUser, (req, res) => {
   console.log(`SERVER: /api/referrals called for user ${req.user.telegram_id}`);
 
+  // First get the referral users
   db.all(
     `
       SELECT
@@ -1257,10 +1258,36 @@ app.get("/api/referrals", ensureUser, (req, res) => {
       }
 
       const safeReferrals = Array.isArray(referrals) ? referrals : [];
-      console.log(
-        `SERVER: Found ${safeReferrals.length} referrals for user ${req.user.telegram_id}`
+      
+      // Now get the total referral bonus points actually received
+      db.get(
+        `
+          SELECT 
+            COALESCE(SUM(points_change), 0) AS total_referral_bonus
+          FROM PointTransactions 
+          WHERE user_id = ? AND reason = 'referral_bonus'
+        `,
+        [req.user.telegram_id],
+        (bonusErr, bonusResult) => {
+          if (bonusErr) {
+            console.error(
+              `SERVER: Error fetching referral bonus for user ${req.user.telegram_id}:`,
+              bonusErr.message
+            );
+            return res.status(500).json({ error: bonusErr.message });
+          }
+
+          const response = {
+            referrals: safeReferrals,
+            total_referral_bonus: bonusResult ? bonusResult.total_referral_bonus : 0
+          };
+
+          console.log(
+            `SERVER: Found ${safeReferrals.length} referrals and ${response.total_referral_bonus} bonus points for user ${req.user.telegram_id}`
+          );
+          return res.json(response);
+        }
       );
-      return res.json(safeReferrals);
     }
   );
 });

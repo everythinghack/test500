@@ -446,7 +446,12 @@ async function initializeTelegramWebApp(tg) {
         };
   
         // Load referral history
-        const referrals = await apiRequest("/referrals");
+        const referralData = await apiRequest("/referrals");
+        
+        // Handle both old format (direct array) and new format (object with referrals array)
+        const referrals = referralData.referrals || referralData;
+        const totalReferralBonus = referralData.total_referral_bonus || 0;
+        
         if (!Array.isArray(referrals) || referrals.length === 0) {
           referralHistoryEl.innerHTML =
             "<p>No referrals yet. Share your link to earn rewards!</p>";
@@ -457,7 +462,6 @@ async function initializeTelegramWebApp(tg) {
         // Calculate totals
         const totalInvited = referrals.length;
         const totalInvitedPoints = referrals.reduce((sum, ref) => sum + (ref.points_earned || 0), 0);
-        const totalReferralBonus = Math.floor(totalInvitedPoints * 0.1); // 10% of invited users' points
 
         referralHistoryEl.innerHTML = `
           <div class="referral-summary">
@@ -470,13 +474,13 @@ async function initializeTelegramWebApp(tg) {
             <div class="summary-item">
               <i class="fas fa-coins"></i>
               <div>
-                <strong>Total Invited Points:</strong> ${totalInvitedPoints} BP
+                <strong>Points Earned by Invites:</strong> ${totalInvitedPoints} BP
               </div>
             </div>
             <div class="summary-item">
               <i class="fas fa-percentage"></i>
               <div>
-                <strong>Your Referral Bonus (10%):</strong> ${totalReferralBonus} BP
+                <strong>Your Referral Bonus Earned:</strong> ${totalReferralBonus} BP
               </div>
             </div>
             <div class="bonus-explanation">
