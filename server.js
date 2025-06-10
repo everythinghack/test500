@@ -446,7 +446,6 @@ app.get("/api/profile", ensureUser, (req, res) => {
         u.first_name, 
         u.points, 
         u.bybit_uid, 
-        u.last_check_in,
         (SELECT COUNT(*) 
          FROM Users 
          WHERE referrer_id = u.telegram_id
@@ -459,31 +458,6 @@ app.get("/api/profile", ensureUser, (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!profile) return res.status(404).json({ error: "Profile not found" });
 
-      // Calculate next check-in time consistently with check-in endpoint
-      if (profile.last_check_in) {
-        const lastCheckInDate = new Date(profile.last_check_in);
-        const now = new Date();
-        const timeDiff = now.getTime() - lastCheckInDate.getTime();
-        const hoursLeft = 24 - (timeDiff / (1000 * 60 * 60));
-        
-        if (hoursLeft > 0) {
-          // Still on cooldown - next check-in is 24 hours from last check-in
-          const nextCheckInDate = new Date(lastCheckInDate.getTime() + (24 * 60 * 60 * 1000));
-          profile.next_check_in = nextCheckInDate.toISOString();
-          profile.hours_left = hoursLeft;
-          profile.can_checkin = false;
-        } else {
-          // Can check in now
-          profile.can_checkin = true;
-          profile.next_check_in = null;
-          profile.hours_left = 0;
-        }
-      } else {
-        // Never checked in before - can check in now
-        profile.can_checkin = true;
-        profile.next_check_in = null;
-        profile.hours_left = 0;
-      }
 
       return res.json(profile);
     }
@@ -553,8 +527,7 @@ app.get("/api/quests", ensureUser, (req, res) => {
       LEFT JOIN UserQuests uq 
         ON q.id = uq.quest_id 
         AND uq.user_id = ?
-      WHERE q.is_active = TRUE 
-        AND q.type != 'daily_checkin_placeholder'
+      WHERE q.is_active = TRUE
     `,
     [req.user.telegram_id],
     (err, quests) => {
@@ -625,103 +598,6 @@ app.post("/api/quests/complete", ensureUser, (req, res) => {
   );
 });
 
-app.post("/api/checkin", ensureUser, (req, res) => {
-  console.log(`SERVER: /api/checkin called for user ${req.user.telegram_id}`);
-
-  const now = new Date();
-  const currentTimestamp = now.toISOString();
-
-  db.get(
-    "SELECT last_check_in FROM Users WHERE telegram_id = ?",
-    [req.user.telegram_id],
-    (err, user) => {
-      if (err) {
-        console.error(
-          `SERVER: Error checking last_check_in for user ${req.user.telegram_id}:`,
-          err.message
-        );
-        return res
-          .status(500)
-          .json({ error: `Database error: ${err.message}` });
-      }
-
-      // Check if user can check in (24 hour cooldown)
-      if (user && user.last_check_in) {
-        const lastCheckIn = new Date(user.last_check_in);
-        const timeDiff = now.getTime() - lastCheckIn.getTime();
-        const hoursLeft = 24 - (timeDiff / (1000 * 60 * 60));
-        
-        if (hoursLeft > 0) {
-          const nextCheckIn = new Date(lastCheckIn.getTime() + (24 * 60 * 60 * 1000));
-          const minutesLeft = Math.ceil(hoursLeft * 60);
-          console.log(`SERVER: User ${req.user.telegram_id} must wait ${hoursLeft.toFixed(1)} hours (${minutesLeft} minutes)`);
-          return res.status(400).json({
-            error: "Check-in on cooldown",
-            message: `You must wait ${Math.floor(hoursLeft)}h ${Math.ceil((hoursLeft % 1) * 60)}m before checking in again.`,
-            next_check_in: nextCheckIn.toISOString(),
-            hours_left: hoursLeft,
-            can_checkin: false
-          });
-        }
-      }
-
-      const DAILY_CHECKIN_POINTS = 10;
-
-      // Use the addPoints function which handles transactions correctly
-      addPoints(
-        req.user.telegram_id,
-        DAILY_CHECKIN_POINTS,
-        "daily_checkin",
-        null,
-        null,
-        (addPointsErr) => {
-          if (addPointsErr) {
-            console.error(
-              `SERVER: Error adding points for user ${req.user.telegram_id}:`,
-              addPointsErr.message
-            );
-            return res
-              .status(500)
-              .json({ error: `Failed to add points: ${addPointsErr.message}` });
-          }
-
-          // Update user’s points and last_check_in
-          db.run(
-            "UPDATE Users SET last_check_in = ? WHERE telegram_id = ?",
-            [currentTimestamp, req.user.telegram_id],
-            function (updateErr) {
-              if (updateErr) {
-                console.error(
-                  `SERVER: Error updating last_check_in for user ${req.user.telegram_id}:`,
-                  updateErr.message
-                );
-                return res
-                  .status(500)
-                  .json({ error: `Failed to update check-in timestamp: ${updateErr.message}` });
-              }
-
-              // Calculate next check-in time (24 hours from now)
-              const nextCheckIn = new Date(now.getTime() + (24 * 60 * 60 * 1000));
-
-              console.log(
-                `SERVER: User ${req.user.telegram_id} checked in successfully, earned ${DAILY_CHECKIN_POINTS} points`
-              );
-              return res.json({
-                success: true,
-                message: `Daily check-in successful! You earned ${DAILY_CHECKIN_POINTS} points.`,
-                points_earned: DAILY_CHECKIN_POINTS,
-                next_check_in: nextCheckIn.toISOString(),
-                current_time: currentTimestamp,
-                can_checkin: false,
-                hours_left: 24
-              });
-            }
-          );
-        }
-      );
-    }
-  );
-});
 
 app.get("/api/referrals/history", ensureUser, (req, res) => {
   db.all(

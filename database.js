@@ -61,7 +61,7 @@ const initDb = () => {
             title TEXT NOT NULL,
             description TEXT,
             points_reward INTEGER NOT NULL,
-            type TEXT CHECK(type IN ('qa', 'mcq', 'social_follow', 'daily_checkin_placeholder')) DEFAULT 'qa',
+            type TEXT CHECK(type IN ('qa', 'mcq', 'social_follow')) DEFAULT 'qa',
             is_active BOOLEAN DEFAULT TRUE,
             quest_data TEXT 
         )`);
@@ -101,18 +101,15 @@ const initDb = () => {
 
         // Add some sample quests (run this only once or check if exists)
         const sampleQuests = [
-            { title: 'Daily Check-in Bonus', description: 'Get points for checking in daily!', points_reward: 10, type: 'daily_checkin_placeholder', quest_data: '{}' },
             { title: 'Join Bybit Telegram', description: 'Join our official Telegram channel.', points_reward: 50, type: 'social_follow', quest_data: '{"url": "https://t.me/test3bybitG", "chatId": "-1002001387968"}' }, // Replace with your actual chat ID
             { title: 'Follow Bybit on X', description: 'Follow our official X (Twitter) account.', points_reward: 50, type: 'social_follow', quest_data: '{"url": "https://twitter.com/bybit_official"}' },
             { title: 'What is Bybit?', description: 'Answer this simple question.', points_reward: 20, type: 'qa', quest_data: '{"question": "What is Bybit?", "answer": "A crypto exchange"}' }
         ];
 
         const stmt = db.prepare("INSERT OR IGNORE INTO Quests (title, description, points_reward, type, quest_data) VALUES (?, ?, ?, ?, ?)");
-        sampleQuests
-            .filter(quest => quest.type !== 'daily_checkin_placeholder') // Don't add placeholder to DB as a real quest
-            .forEach(quest => {
-                stmt.run(quest.title, quest.description, quest.points_reward, quest.type, quest.quest_data);
-            });
+        sampleQuests.forEach(quest => {
+            stmt.run(quest.title, quest.description, quest.points_reward, quest.type, quest.quest_data);
+        });
         stmt.finalize(() => console.log('Sample quests added/verified.'));
     });
 };
