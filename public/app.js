@@ -559,7 +559,9 @@ async function initializeTelegramWebApp(tg) {
       async function initializeCheckinButton() {
         try {
           const profile = await apiRequest("/profile");
-          if (profile.next_check_in) {
+          
+          if (profile.can_checkin === false && profile.next_check_in) {
+            // User is on cooldown
             const isCountdownDone = updateCountdown(profile.next_check_in);
             if (!isCountdownDone && !countdownInterval) {
               countdownInterval = setInterval(() => {
@@ -571,12 +573,13 @@ async function initializeTelegramWebApp(tg) {
               }, 1000);
             }
           } else {
-            // No last check-in, button should be enabled
+            // User can check in
             checkinBtn.disabled = false;
             checkinBtn.innerHTML = "<i class='fas fa-calendar-check'></i> Daily Check-in";
           }
         } catch (error) {
           console.error("Failed to initialize check-in button:", error);
+          // Default to enabled if we can't determine state
           checkinBtn.disabled = false;
           checkinBtn.innerHTML = "<i class='fas fa-calendar-check'></i> Daily Check-in";
         }
@@ -604,8 +607,9 @@ async function initializeTelegramWebApp(tg) {
             
             showPage("invite-page"); // stay on Invite page
           } else {
-            if (result.next_check_in && result.hours_left && !countdownInterval) {
+            if (result.can_checkin === false && result.next_check_in && !countdownInterval) {
               // Show countdown for cooldown
+              updateCountdown(result.next_check_in); // Update immediately
               countdownInterval = setInterval(() => {
                 const done = updateCountdown(result.next_check_in);
                 if (done && countdownInterval) {

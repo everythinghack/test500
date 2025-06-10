@@ -459,11 +459,30 @@ app.get("/api/profile", ensureUser, (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!profile) return res.status(404).json({ error: "Profile not found" });
 
+      // Calculate next check-in time consistently with check-in endpoint
       if (profile.last_check_in) {
         const lastCheckInDate = new Date(profile.last_check_in);
-        const nextCheckInDate = new Date(lastCheckInDate);
-        nextCheckInDate.setDate(nextCheckInDate.getDate() + 1);
-        profile.next_check_in = nextCheckInDate.toISOString();
+        const now = new Date();
+        const timeDiff = now.getTime() - lastCheckInDate.getTime();
+        const hoursLeft = 24 - (timeDiff / (1000 * 60 * 60));
+        
+        if (hoursLeft > 0) {
+          // Still on cooldown - next check-in is 24 hours from last check-in
+          const nextCheckInDate = new Date(lastCheckInDate.getTime() + (24 * 60 * 60 * 1000));
+          profile.next_check_in = nextCheckInDate.toISOString();
+          profile.hours_left = hoursLeft;
+          profile.can_checkin = false;
+        } else {
+          // Can check in now
+          profile.can_checkin = true;
+          profile.next_check_in = null;
+          profile.hours_left = 0;
+        }
+      } else {
+        // Never checked in before - can check in now
+        profile.can_checkin = true;
+        profile.next_check_in = null;
+        profile.hours_left = 0;
       }
 
       return res.json(profile);
@@ -634,12 +653,14 @@ app.post("/api/checkin", ensureUser, (req, res) => {
         
         if (hoursLeft > 0) {
           const nextCheckIn = new Date(lastCheckIn.getTime() + (24 * 60 * 60 * 1000));
-          console.log(`SERVER: User ${req.user.telegram_id} must wait ${hoursLeft.toFixed(1)} hours`);
+          const minutesLeft = Math.ceil(hoursLeft * 60);
+          console.log(`SERVER: User ${req.user.telegram_id} must wait ${hoursLeft.toFixed(1)} hours (${minutesLeft} minutes)`);
           return res.status(400).json({
             error: "Check-in on cooldown",
-            message: `You must wait ${Math.ceil(hoursLeft)} hours before checking in again.`,
+            message: `You must wait ${Math.floor(hoursLeft)}h ${Math.ceil((hoursLeft % 1) * 60)}m before checking in again.`,
             next_check_in: nextCheckIn.toISOString(),
-            hours_left: hoursLeft
+            hours_left: hoursLeft,
+            can_checkin: false
           });
         }
       }
@@ -690,7 +711,9 @@ app.post("/api/checkin", ensureUser, (req, res) => {
                 message: `Daily check-in successful! You earned ${DAILY_CHECKIN_POINTS} points.`,
                 points_earned: DAILY_CHECKIN_POINTS,
                 next_check_in: nextCheckIn.toISOString(),
-                current_time: currentTimestamp
+                current_time: currentTimestamp,
+                can_checkin: false,
+                hours_left: 24
               });
             }
           );
