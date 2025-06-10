@@ -669,6 +669,112 @@ app.post("/api/admin/quests/:id/toggle", (req, res) => {
   });
 });
 
+// Database cleanup endpoint
+app.post("/api/admin/cleanup-duplicates", (req, res) => {
+  console.log("ADMIN: Starting duplicate quest cleanup...");
+  
+  // Get all quests
+  db.all("SELECT * FROM Quests ORDER BY id", (err, quests) => {
+    if (err) {
+      console.error("ADMIN: Error fetching quests:", err);
+      return res.status(500).json({ error: err.message });
+    }
+    
+    console.log(`ADMIN: Found ${quests.length} quests total`);
+    
+    // Group by title to find duplicates
+    const questGroups = {};
+    quests.forEach(quest => {
+      const key = quest.title.toLowerCase().trim();
+      if (!questGroups[key]) {
+        questGroups[key] = [];
+      }
+      questGroups[key].push(quest);
+    });
+    
+    // Find duplicates
+    const duplicates = Object.values(questGroups).filter(group => group.length > 1);
+    
+    if (duplicates.length === 0) {
+      console.log("ADMIN: No duplicates found");
+      return res.json({
+        success: true,
+        message: "No duplicates found",
+        total_quests: quests.length,
+        duplicates_removed: 0
+      });
+    }
+    
+    console.log(`ADMIN: Found ${duplicates.length} sets of duplicates`);
+    
+    let deletePromises = [];
+    let deleteCount = 0;
+    
+    duplicates.forEach(group => {
+      // Keep the first (lowest ID), delete the rest
+      const toKeep = group[0];
+      const toDelete = group.slice(1);
+      
+      console.log(`ADMIN: Keeping "${toKeep.title}" (ID: ${toKeep.id})`);
+      
+      toDelete.forEach(quest => {
+        console.log(`ADMIN: Deleting "${quest.title}" (ID: ${quest.id})`);
+        deleteCount++;
+        
+        deletePromises.push(new Promise((resolve, reject) => {
+          // First delete UserQuests for this quest
+          db.run("DELETE FROM UserQuests WHERE quest_id = ?", [quest.id], (err) => {
+            if (err) {
+              console.error(`ADMIN: Error deleting UserQuests for quest ${quest.id}:`, err);
+              return reject(err);
+            }
+            
+            // Then delete the quest itself
+            db.run("DELETE FROM Quests WHERE id = ?", [quest.id], (err) => {
+              if (err) {
+                console.error(`ADMIN: Error deleting quest ${quest.id}:`, err);
+                return reject(err);
+              }
+              resolve();
+            });
+          });
+        }));
+      });
+    });
+    
+    // Execute all deletions
+    Promise.all(deletePromises).then(() => {
+      console.log(`ADMIN: Cleanup complete! Removed ${deleteCount} duplicate quests`);
+      
+      // Get final count
+      db.all("SELECT * FROM Quests ORDER BY id", (err, finalQuests) => {
+        if (err) {
+          console.error("ADMIN: Error checking final state:", err);
+          return res.status(500).json({ error: err.message });
+        }
+        
+        const finalByTitle = {};
+        finalQuests.forEach(q => {
+          finalByTitle[q.title] = (finalByTitle[q.title] || 0) + 1;
+        });
+        
+        console.log(`ADMIN: Final quest count: ${finalQuests.length}`);
+        res.json({
+          success: true,
+          message: `Successfully removed ${deleteCount} duplicate quests`,
+          total_quests_before: quests.length,
+          total_quests_after: finalQuests.length,
+          duplicates_removed: deleteCount,
+          final_quests: finalQuests.map(q => ({ id: q.id, title: q.title, type: q.type }))
+        });
+      });
+    }).catch(err => {
+      console.error("ADMIN: Error during cleanup:", err);
+      res.status(500).json({ error: `Cleanup failed: ${err.message}` });
+    });
+  });
+});
+
 //
 // Verify if user is a member of a Telegram channel/group
 //
