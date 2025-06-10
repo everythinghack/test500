@@ -641,11 +641,65 @@ app.get("/api/leaderboard", (req, res) => {
   );
 });
 
-// Quest management endpoint
+// Quest management endpoint - shows ALL quests including inactive
 app.get("/api/admin/quests", (req, res) => {
   db.all("SELECT * FROM Quests ORDER BY id", (err, quests) => {
     if (err) return res.status(500).json({ error: err.message });
     return res.json(quests || []);
+  });
+});
+
+// Complete database analysis
+app.get("/api/admin/full-analysis", (req, res) => {
+  Promise.all([
+    // Get all quests (active and inactive)
+    new Promise((resolve, reject) => {
+      db.all("SELECT * FROM Quests ORDER BY id", (err, rows) => {
+        err ? reject(err) : resolve(rows);
+      });
+    }),
+    // Get quest count by status
+    new Promise((resolve, reject) => {
+      db.all(`
+        SELECT is_active, COUNT(*) as count 
+        FROM Quests 
+        GROUP BY is_active
+      `, (err, rows) => {
+        err ? reject(err) : resolve(rows);
+      });
+    }),
+    // Get quest count by type
+    new Promise((resolve, reject) => {
+      db.all(`
+        SELECT type, is_active, COUNT(*) as count 
+        FROM Quests 
+        GROUP BY type, is_active
+      `, (err, rows) => {
+        err ? reject(err) : resolve(rows);
+      });
+    })
+  ]).then(([allQuests, byStatus, byType]) => {
+    const activeQuests = allQuests.filter(q => q.is_active);
+    const inactiveQuests = allQuests.filter(q => !q.is_active);
+    
+    res.json({
+      total_quests: allQuests.length,
+      active_quests: activeQuests.length,
+      inactive_quests: inactiveQuests.length,
+      by_status: byStatus,
+      by_type: byType,
+      all_quest_titles: allQuests.map(q => ({
+        id: q.id,
+        title: q.title,
+        type: q.type,
+        active: q.is_active,
+        points: q.points_reward
+      })),
+      active_quest_details: activeQuests,
+      inactive_quest_details: inactiveQuests
+    });
+  }).catch(err => {
+    res.status(500).json({ error: err.message });
   });
 });
 
@@ -805,6 +859,89 @@ app.post("/api/admin/cleanup-duplicates", (req, res) => {
     }).catch(err => {
       console.error("ADMIN: Error during cleanup:", err);
       res.status(500).json({ error: `Cleanup failed: ${err.message}` });
+    });
+  });
+});
+
+// Nuclear cleanup - remove ALL quests except the 3 we want
+app.post("/api/admin/nuclear-cleanup", (req, res) => {
+  console.log("ADMIN: Starting nuclear cleanup - removing all unwanted quests...");
+  
+  // Define the ONLY quests we want to keep
+  const allowedQuests = [
+    "Join Bybit Telegram",
+    "Follow Bybit on X", 
+    "What is Bybit?"
+  ];
+  
+  db.all("SELECT * FROM Quests ORDER BY id", (err, allQuests) => {
+    if (err) {
+      console.error("ADMIN: Error fetching all quests:", err);
+      return res.status(500).json({ error: err.message });
+    }
+    
+    console.log(`ADMIN: Found ${allQuests.length} total quests`);
+    
+    // Find quests to delete (anything NOT in our allowed list)
+    const questsToDelete = allQuests.filter(quest => 
+      !allowedQuests.includes(quest.title.trim())
+    );
+    
+    const questsToKeep = allQuests.filter(quest => 
+      allowedQuests.includes(quest.title.trim())
+    );
+    
+    console.log(`ADMIN: Keeping ${questsToKeep.length} quests, deleting ${questsToDelete.length} quests`);
+    
+    if (questsToDelete.length === 0) {
+      return res.json({
+        success: true,
+        message: "No unwanted quests found",
+        kept_quests: questsToKeep.map(q => ({ id: q.id, title: q.title })),
+        deleted_quests: []
+      });
+    }
+    
+    // Delete unwanted quests
+    let deletePromises = [];
+    
+    questsToDelete.forEach(quest => {
+      console.log(`ADMIN: Deleting unwanted quest: "${quest.title}" (ID: ${quest.id})`);
+      
+      deletePromises.push(new Promise((resolve, reject) => {
+        // First delete UserQuests for this quest
+        db.run("DELETE FROM UserQuests WHERE quest_id = ?", [quest.id], (err) => {
+          if (err) {
+            console.error(`ADMIN: Error deleting UserQuests for quest ${quest.id}:`, err);
+            return reject(err);
+          }
+          
+          // Then delete the quest itself
+          db.run("DELETE FROM Quests WHERE id = ?", [quest.id], (err) => {
+            if (err) {
+              console.error(`ADMIN: Error deleting quest ${quest.id}:`, err);
+              return reject(err);
+            }
+            resolve();
+          });
+        });
+      }));
+    });
+    
+    // Execute all deletions
+    Promise.all(deletePromises).then(() => {
+      console.log(`ADMIN: Nuclear cleanup complete! Deleted ${questsToDelete.length} unwanted quests`);
+      
+      res.json({
+        success: true,
+        message: `Successfully deleted ${questsToDelete.length} unwanted quests`,
+        kept_quests: questsToKeep.map(q => ({ id: q.id, title: q.title })),
+        deleted_quests: questsToDelete.map(q => ({ id: q.id, title: q.title })),
+        total_deleted: questsToDelete.length
+      });
+    }).catch(err => {
+      console.error("ADMIN: Error during nuclear cleanup:", err);
+      res.status(500).json({ error: `Nuclear cleanup failed: ${err.message}` });
     });
   });
 });
