@@ -669,6 +669,40 @@ app.post("/api/admin/quests/:id/toggle", (req, res) => {
   });
 });
 
+// Debug endpoint - shows what frontend API returns
+app.get("/api/debug/quests", (req, res) => {
+  // Get all quests without authentication for debugging
+  db.all(
+    `
+      SELECT 
+        q.id, 
+        q.title, 
+        q.description, 
+        q.points_reward, 
+        q.type, 
+        q.quest_data,
+        q.is_active
+      FROM Quests q
+      WHERE q.is_active = TRUE
+      ORDER BY q.id
+    `,
+    [],
+    (err, quests) => {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      const qaQuests = quests.filter(q => q.type === 'qa');
+      const socialQuests = quests.filter(q => q.type === 'social_follow');
+      
+      return res.json({
+        total_quests: quests.length,
+        qa_quests: qaQuests,
+        social_quests: socialQuests,
+        all_quests: quests
+      });
+    }
+  );
+});
+
 // Database cleanup endpoint
 app.post("/api/admin/cleanup-duplicates", (req, res) => {
   console.log("ADMIN: Starting duplicate quest cleanup...");
