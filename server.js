@@ -58,11 +58,11 @@ if (BOT_TOKEN) {
 // --- BOT WEBHOOK HANDLER ---
 //
 app.post("/api/telegram/webhook", express.json(), async (req, res) => {
-  console.log("WEBHOOK: Received request:", JSON.stringify(req.body, null, 2));
+  console.log("WEBHOOK: Received request body:", JSON.stringify(req.body, null, 2));
   
   if (!bot) {
     console.error("WEBHOOK: Bot not configured");
-    return res.status(503).json({ error: "Bot not configured" });
+    return res.sendStatus(200); // Always return 200 to Telegram
   }
   
   try {
@@ -78,7 +78,7 @@ app.post("/api/telegram/webhook", express.json(), async (req, res) => {
     const commandParam = msg.text?.match(/\/start(?: (.+))?/)?.[1] || null;
 
     console.log(
-      `BOT: /start command. User: ${newUserId}, Chat: ${chatId}, Param: '${commandParam}', MINI_APP_URL: '${MINI_APP_URL}'`
+      `WEBHOOK: Processing /start command. User: ${newUserId}, Chat: ${chatId}, Param: '${commandParam}', MINI_APP_URL: '${MINI_APP_URL}'`
     );
 
     let referrerId = null;
@@ -105,16 +105,27 @@ app.post("/api/telegram/webhook", express.json(), async (req, res) => {
 
     if (referrerId) {
       try {
+        console.log(`WEBHOOK: Checking if referrer ${referrerId} exists in database...`);
+        
         // Check if referrer exists in Users table
         const referrerUser = await new Promise((resolve, reject) => {
           db.get(
             "SELECT telegram_id FROM Users WHERE telegram_id = ?",
             [referrerId],
-            (err, row) => (err ? reject(err) : resolve(row))
+            (err, row) => {
+              if (err) {
+                console.error(`WEBHOOK: Database error checking referrer ${referrerId}:`, err);
+                reject(err);
+              } else {
+                resolve(row);
+              }
+            }
           );
         });
 
         if (referrerUser) {
+          console.log(`WEBHOOK: Referrer ${referrerId} found, storing pending referral...`);
+          
           // Store or update pending referral
           await new Promise((resolve, reject) => {
             db.run(
@@ -123,23 +134,31 @@ app.post("/api/telegram/webhook", express.json(), async (req, res) => {
                VALUES (?, ?, FALSE)`,
               [newUserId, referrerId],
               function (err) {
-                err ? reject(err) : resolve(this);
+                if (err) {
+                  console.error(`WEBHOOK: Error storing pending referral:`, err);
+                  reject(err);
+                } else {
+                  console.log(`WEBHOOK: Successfully stored pending referral`);
+                  resolve(this);
+                }
               }
             );
           });
           console.log(
-            `BOT: Stored/Updated pending referral for new_user ${newUserId} by referrer ${referrerId}.`
+            `WEBHOOK: ✅ Stored pending referral for new_user ${newUserId} by referrer ${referrerId}`
           );
         } else {
           console.log(
-            `BOT: Referrer ID ${referrerId} does not exist in Users table. Not storing pending referral.`
+            `WEBHOOK: ❌ Referrer ID ${referrerId} does not exist in Users table. Not storing pending referral.`
           );
         }
       } catch (dbError) {
         console.error(
-          `BOT: DB error during /start referral processing for ${newUserId} by ${referrerId}:`,
-          dbError.message
+          `WEBHOOK: Database error during referral processing for ${newUserId} by ${referrerId}:`,
+          dbError.message,
+          dbError.stack
         );
+        // Continue processing even if referral fails
       }
     }
 
@@ -156,6 +175,8 @@ app.post("/api/telegram/webhook", express.json(), async (req, res) => {
     });
 
     if (!userExists) {
+      console.log(`WEBHOOK: User ${newUserId} is new, sending welcome message...`);
+      
       // Only send welcome message if user is new
       const message = "Click below to open the Bybit Event App:";
       const options = {
@@ -165,9 +186,21 @@ app.post("/api/telegram/webhook", express.json(), async (req, res) => {
           ],
         },
       };
-      if (bot) {
-        await bot.sendMessage(chatId, message, options);
+      
+      try {
+        if (bot) {
+          console.log(`WEBHOOK: Sending message to chat ${chatId} with MINI_APP_URL: ${MINI_APP_URL}`);
+          await bot.sendMessage(chatId, message, options);
+          console.log(`WEBHOOK: ✅ Successfully sent welcome message to user ${newUserId}`);
+        } else {
+          console.error(`WEBHOOK: Bot instance not available`);
+        }
+      } catch (sendError) {
+        console.error(`WEBHOOK: Error sending message to ${chatId}:`, sendError.message, sendError.stack);
+        // Don't throw error, just log it
       }
+    } else {
+      console.log(`WEBHOOK: User ${newUserId} already exists, skipping welcome message`);
     }
 
     return res.sendStatus(200);
@@ -844,6 +877,16 @@ app.get("/api/debug/bot-config", (req, res) => {
       webhook_info: "Bot not initialized"
     });
   }
+});
+
+// Webhook health check
+app.get("/api/telegram/webhook", (req, res) => {
+  res.json({
+    status: "webhook_endpoint_active",
+    bot_configured: !!bot,
+    mini_app_url: MINI_APP_URL,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Debug current quest response format

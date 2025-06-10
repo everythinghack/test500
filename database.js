@@ -68,6 +68,36 @@ const initDb = () => {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`);
 
+        // Add new columns to existing Quests table if they don't exist
+        db.all("PRAGMA table_info(Quests)", (err, columns) => {
+            if (err) {
+                console.error("Error checking Quests table schema:", err);
+                return;
+            }
+            
+            const columnNames = columns.map(col => col.name);
+            
+            if (!columnNames.includes('day_number')) {
+                db.run("ALTER TABLE Quests ADD COLUMN day_number INTEGER DEFAULT NULL", (err) => {
+                    if (err) {
+                        console.error("Error adding day_number column:", err);
+                    } else {
+                        console.log("Added day_number column to Quests table");
+                    }
+                });
+            }
+            
+            if (!columnNames.includes('created_at')) {
+                db.run("ALTER TABLE Quests ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", (err) => {
+                    if (err) {
+                        console.error("Error adding created_at column to Quests:", err);
+                    } else {
+                        console.log("Added created_at column to Quests table");
+                    }
+                });
+            }
+        });
+
         db.run(`CREATE TABLE IF NOT EXISTS UserQuests (
             user_id INTEGER,
             quest_id INTEGER,
