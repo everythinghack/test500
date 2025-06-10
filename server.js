@@ -751,6 +751,76 @@ app.get("/api/check-referrals", (req, res) => {
   });
 });
 
+// Debug bot configuration
+app.get("/api/debug/bot-config", (req, res) => {
+  const config = {
+    bot_token_exists: !!BOT_TOKEN,
+    bot_token_length: BOT_TOKEN ? BOT_TOKEN.length : 0,
+    mini_app_url: MINI_APP_URL,
+    webhook_url: MINI_APP_URL + '/api/telegram/webhook',
+    bot_initialized: !!bot,
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    railway_environment: !!process.env.RAILWAY_ENVIRONMENT
+  };
+  
+  // Test webhook URL accessibility
+  if (bot) {
+    bot.getWebHookInfo().then(webhookInfo => {
+      res.json({
+        ...config,
+        webhook_info: webhookInfo
+      });
+    }).catch(err => {
+      res.json({
+        ...config,
+        webhook_error: err.message
+      });
+    });
+  } else {
+    res.json({
+      ...config,
+      webhook_info: "Bot not initialized"
+    });
+  }
+});
+
+// Test webhook manually
+app.post("/api/debug/test-webhook", (req, res) => {
+  const { userId, referrerId } = req.body;
+  
+  if (!userId) {
+    return res.status(400).json({ error: "userId required" });
+  }
+  
+  // Simulate webhook payload
+  const simulatedUpdate = {
+    message: {
+      chat: { id: userId },
+      from: { id: parseInt(userId) },
+      text: referrerId ? `/start ref_${referrerId}` : '/start'
+    }
+  };
+  
+  console.log('MANUAL_TEST: Simulating webhook with:', simulatedUpdate);
+  
+  // Call the same logic as the webhook
+  const msg = simulatedUpdate.message;
+  const chatId = msg.chat.id;
+  const newUserId = msg.from.id;
+  const commandParam = msg.text?.match(/\/start(?: (.+))?/)?.[1] || null;
+  
+  res.json({
+    success: true,
+    processed: {
+      chatId,
+      newUserId,
+      commandParam,
+      message: "Webhook logic would process this request"
+    }
+  });
+});
+
 app.post("/api/admin/quests/:id/toggle", (req, res) => {
   const questId = parseInt(req.params.id, 10);
   
