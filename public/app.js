@@ -159,8 +159,14 @@ async function initializeTelegramWebApp(tg) {
         document.getElementById("profile-points").textContent = profile.points;
         document.getElementById("profile-invites").textContent =
           profile.referral_count || 0;
-        document.getElementById("profile-last-checkin").textContent =
-          profile.last_check_in || "Never";
+        // Format last check-in date properly
+        const lastCheckinEl = document.getElementById("profile-last-checkin");
+        if (profile.last_check_in) {
+          const lastCheckinDate = new Date(profile.last_check_in);
+          lastCheckinEl.textContent = lastCheckinDate.toLocaleString();
+        } else {
+          lastCheckinEl.textContent = "Never";
+        }
   
         updatePointsDisplay(profile.points);
   
@@ -522,6 +528,8 @@ async function initializeTelegramWebApp(tg) {
       const checkinBtn = document.getElementById("daily-checkin-btn");
       if (!checkinBtn) return;
       
+      let countdownInterval = null;
+      
       // Function to update countdown display
       function updateCountdown(nextCheckIn) {
         const now = new Date();
@@ -531,7 +539,11 @@ async function initializeTelegramWebApp(tg) {
         if (timeDiff <= 0) {
           checkinBtn.disabled = false;
           checkinBtn.innerHTML = "<i class='fas fa-calendar-check'></i> Daily Check-in";
-          return;
+          if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+          }
+          return true; // Indicates countdown is done
         }
         
         const hours = Math.floor(timeDiff / (1000 * 60 * 60));
@@ -540,6 +552,34 @@ async function initializeTelegramWebApp(tg) {
         
         checkinBtn.disabled = true;
         checkinBtn.innerHTML = `⏰ ${hours}h ${minutes}m ${seconds}s`;
+        return false; // Indicates countdown is still active
+      }
+      
+      // Check initial state and set up countdown if needed
+      async function initializeCheckinButton() {
+        try {
+          const profile = await apiRequest("/profile");
+          if (profile.next_check_in) {
+            const isCountdownDone = updateCountdown(profile.next_check_in);
+            if (!isCountdownDone && !countdownInterval) {
+              countdownInterval = setInterval(() => {
+                const done = updateCountdown(profile.next_check_in);
+                if (done && countdownInterval) {
+                  clearInterval(countdownInterval);
+                  countdownInterval = null;
+                }
+              }, 1000);
+            }
+          } else {
+            // No last check-in, button should be enabled
+            checkinBtn.disabled = false;
+            checkinBtn.innerHTML = "<i class='fas fa-calendar-check'></i> Daily Check-in";
+          }
+        } catch (error) {
+          console.error("Failed to initialize check-in button:", error);
+          checkinBtn.disabled = false;
+          checkinBtn.innerHTML = "<i class='fas fa-calendar-check'></i> Daily Check-in";
+        }
       }
       
       checkinBtn.addEventListener("click", async () => {
@@ -552,27 +592,25 @@ async function initializeTelegramWebApp(tg) {
             await loadProfilePage();
             
             // Start countdown timer
-            if (result.next_check_in) {
-              const countdownInterval = setInterval(() => {
-                updateCountdown(result.next_check_in);
-                const now = new Date();
-                const nextTime = new Date(result.next_check_in);
-                if (now >= nextTime) {
+            if (result.next_check_in && !countdownInterval) {
+              countdownInterval = setInterval(() => {
+                const done = updateCountdown(result.next_check_in);
+                if (done && countdownInterval) {
                   clearInterval(countdownInterval);
+                  countdownInterval = null;
                 }
               }, 1000);
             }
             
             showPage("invite-page"); // stay on Invite page
           } else {
-            if (result.next_check_in && result.hours_left) {
+            if (result.next_check_in && result.hours_left && !countdownInterval) {
               // Show countdown for cooldown
-              const countdownInterval = setInterval(() => {
-                updateCountdown(result.next_check_in);
-                const now = new Date();
-                const nextTime = new Date(result.next_check_in);
-                if (now >= nextTime) {
+              countdownInterval = setInterval(() => {
+                const done = updateCountdown(result.next_check_in);
+                if (done && countdownInterval) {
                   clearInterval(countdownInterval);
+                  countdownInterval = null;
                 }
               }, 1000);
             } else {
@@ -588,6 +626,9 @@ async function initializeTelegramWebApp(tg) {
           checkinBtn.innerHTML = "<i class='fas fa-calendar-check'></i> Daily Check-in";
         }
       });
+      
+      // Initialize the button state on setup
+      initializeCheckinButton();
     }
   
     // ------------ App Initialization ------------
