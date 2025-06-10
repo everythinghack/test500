@@ -454,19 +454,37 @@ async function initializeTelegramWebApp(tg) {
           return;
         }
   
-        referralHistoryEl.innerHTML = "";
-        referrals.forEach((ref) => {
-          const item = document.createElement("div");
-          item.className = "referral-item";
-          item.innerHTML = `
-            <p><i class="fas fa-user-plus"></i> ${ref.referred_username ||
-            ref.referred_first_name ||
-            "User #" + ref.referred_id}</p>
-            <p>Joined: ${new Date(ref.created_at).toLocaleDateString()}</p>
-            <p>Points: ${ref.points_earned || 0}</p>
-          `;
-          referralHistoryEl.appendChild(item);
-        });
+        // Calculate totals
+        const totalInvited = referrals.length;
+        const totalInvitedPoints = referrals.reduce((sum, ref) => sum + (ref.points_earned || 0), 0);
+        const totalReferralBonus = Math.floor(totalInvitedPoints * 0.1); // 10% of invited users' points
+
+        referralHistoryEl.innerHTML = `
+          <div class="referral-summary">
+            <div class="summary-item">
+              <i class="fas fa-users"></i>
+              <div>
+                <strong>Total Invited:</strong> ${totalInvited} citizens
+              </div>
+            </div>
+            <div class="summary-item">
+              <i class="fas fa-coins"></i>
+              <div>
+                <strong>Total Invited Points:</strong> ${totalInvitedPoints} BP
+              </div>
+            </div>
+            <div class="summary-item">
+              <i class="fas fa-percentage"></i>
+              <div>
+                <strong>Your Referral Bonus (10%):</strong> ${totalReferralBonus} BP
+              </div>
+            </div>
+            <div class="bonus-explanation">
+              <i class="fas fa-info-circle"></i>
+              <small>You earn 10% of all points earned by users you invite!</small>
+            </div>
+          </div>
+        `;
         updatePointsDisplay(profile.points);
       } catch (error) {
         console.error("APP_JS: Failed to load invite page:", error);
