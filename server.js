@@ -526,6 +526,89 @@ app.post("/api/profile/uid", ensureUser, (req, res) => {
   );
 });
 
+// Hardcoded quests and tasks - easy to modify!
+const DAILY_QUESTS = [
+  {
+    id: 'daily_1',
+    title: 'Day 1: P2P Trading',
+    description: 'Learn about P2P trading on Bybit',
+    points_reward: 20,
+    type: 'daily',
+    day_number: 1,
+    question: 'What does Bybit\'s P2P platform allow users to do?',
+    answer: 'Trade crypto directly'
+  },
+  {
+    id: 'daily_2', 
+    title: 'Day 2: Launchpad',
+    description: 'Discover new token launches',
+    points_reward: 20,
+    type: 'daily',
+    day_number: 2,
+    question: 'What is the main use of Bybit Launchpad?',
+    answer: 'Token launches'
+  },
+  {
+    id: 'daily_3',
+    title: 'Day 3: Puzzle Hunt', 
+    description: 'Join the puzzle hunt',
+    points_reward: 20,
+    type: 'daily',
+    day_number: 3,
+    question: 'What do users collect in Bybit Puzzle Hunt?',
+    answer: 'Puzzle pieces'
+  },
+  {
+    id: 'daily_4',
+    title: 'Day 4: Launchpool',
+    description: 'Stake and earn rewards',
+    points_reward: 20,
+    type: 'daily', 
+    day_number: 4,
+    question: 'What do users do in Launchpool to earn rewards?',
+    answer: 'Stake tokens'
+  },
+  {
+    id: 'daily_5',
+    title: 'Day 5: Copy Trading',
+    description: 'Copy expert traders',
+    points_reward: 20,
+    type: 'daily',
+    day_number: 5,
+    question: 'What does Copy Trading on Bybit allow you to do?',
+    answer: 'Copy experts'
+  }
+];
+
+const SOCIAL_TASKS = [
+  {
+    id: 'social_1',
+    title: 'Join Bybit Telegram Group',
+    description: 'Join our official Telegram Group',
+    points_reward: 50,
+    type: 'social_follow',
+    url: 'https://t.me/bybit_official',
+    chatId: '-1001234567890'
+  },
+  {
+    id: 'social_2', 
+    title: 'Join Bybit Telegram Channel',
+    description: 'Join our official Telegram Channel',
+    points_reward: 50,
+    type: 'social_follow',
+    url: 'https://t.me/bybit_announcements',
+    chatId: '-1001234567891'
+  },
+  {
+    id: 'social_3',
+    title: 'Follow Bybit on X',
+    description: 'Follow our official X (Twitter) account',
+    points_reward: 50,
+    type: 'social_follow',
+    url: 'https://twitter.com/bybit_official'
+  }
+];
+
 app.get("/api/quests", ensureUser, (req, res) => {
   getCurrentEventDay((err, currentDay) => {
     if (err) {
@@ -533,42 +616,37 @@ app.get("/api/quests", ensureUser, (req, res) => {
       return res.status(500).json({ error: "Failed to get event status" });
     }
 
+    // Get user's completed quests from database
     db.all(
-      `
-        SELECT 
-          q.id, 
-          q.title, 
-          q.description, 
-          q.points_reward, 
-          q.type, 
-          q.quest_data,
-          q.day_number,
-          CASE WHEN uq.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_completed,
-          CASE 
-            WHEN q.type = 'daily' AND q.day_number <= ? THEN 1
-            WHEN q.type != 'daily' THEN 1
-            ELSE 0
-          END AS is_available
-        FROM Quests q
-        LEFT JOIN UserQuests uq 
-          ON q.id = uq.quest_id 
-          AND uq.user_id = ?
-        WHERE q.is_active = TRUE
-        ORDER BY 
-          CASE q.type 
-            WHEN 'daily' THEN q.day_number 
-            ELSE 999 
-          END,
-          q.id
-      `,
-      [currentDay, req.user.telegram_id],
-      (err, quests) => {
+      "SELECT quest_id FROM UserQuests WHERE user_id = ?",
+      [req.user.telegram_id],
+      (err, completedQuests) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        // Add event info to response
+        const completedQuestIds = (completedQuests || []).map(q => q.quest_id);
+        
+        // Process daily quests
+        const dailyQuests = DAILY_QUESTS.map(quest => ({
+          ...quest,
+          quest_data: JSON.stringify({ question: quest.question, answer: quest.answer }),
+          is_completed: completedQuestIds.includes(quest.id) ? 1 : 0,
+          is_available: quest.day_number <= currentDay ? 1 : 0
+        }));
+        
+        // Process social tasks  
+        const socialTasks = SOCIAL_TASKS.map(task => ({
+          ...task,
+          quest_data: JSON.stringify({ url: task.url, chatId: task.chatId }),
+          is_completed: completedQuestIds.includes(task.id) ? 1 : 0,
+          is_available: 1 // Social tasks are always available
+        }));
+        
+        // Combine all quests
+        const allQuests = [...dailyQuests, ...socialTasks];
+        
         const response = {
           current_day: currentDay,
-          quests: quests || []
+          quests: allQuests
         };
         
         return res.json(response);
@@ -580,90 +658,93 @@ app.get("/api/quests", ensureUser, (req, res) => {
 app.post("/api/quests/complete", ensureUser, (req, res) => {
   const { questId, answer } = req.body;
 
-  db.get(
-    `SELECT * FROM Quests WHERE id = ? AND is_active = TRUE`,
-    [questId],
-    (err, quest) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (!quest) return res.status(404).json({ error: "Quest not found or not active." });
+  // Find quest in hardcoded data
+  const allQuests = [...DAILY_QUESTS, ...SOCIAL_TASKS];
+  const quest = allQuests.find(q => q.id === questId);
+  
+  if (!quest) {
+    return res.status(404).json({ error: "Quest not found." });
+  }
 
-      // Check if quest is available (for daily quests)
-      if (quest.type === 'daily') {
-        getCurrentEventDay((dayErr, currentDay) => {
-          if (dayErr) {
-            return res.status(500).json({ error: "Failed to check quest availability." });
-          }
-          
-          if (quest.day_number > currentDay) {
-            return res.status(400).json({ 
-              error: `This quest will be available on Day ${quest.day_number}. Currently it's Day ${currentDay}.` 
-            });
-          }
-          
-          processQuestCompletion();
-        });
-      } else {
-        processQuestCompletion();
+  // Check if quest is available (for daily quests)
+  if (quest.type === 'daily') {
+    getCurrentEventDay((dayErr, currentDay) => {
+      if (dayErr) {
+        return res.status(500).json({ error: "Failed to check quest availability." });
       }
+      
+      if (quest.day_number > currentDay) {
+        return res.status(400).json({ 
+          error: `This quest will be available on Day ${quest.day_number}. Currently it's Day ${currentDay}.` 
+        });
+      }
+      
+      processQuestCompletion();
+    });
+  } else {
+    processQuestCompletion();
+  }
 
-      function processQuestCompletion() {
-        db.get(
-          `SELECT * FROM UserQuests WHERE user_id = ? AND quest_id = ?`,
-          [req.user.telegram_id, questId],
-          (completedErr, completed) => {
-            if (completedErr) return res.status(500).json({ error: completedErr.message });
-            if (completed) return res.status(400).json({ error: "Quest already completed." });
+  function processQuestCompletion() {
+    // Check if already completed
+    db.get(
+      `SELECT * FROM UserQuests WHERE user_id = ? AND quest_id = ?`,
+      [req.user.telegram_id, questId],
+      (completedErr, completed) => {
+        if (completedErr) return res.status(500).json({ error: completedErr.message });
+        if (completed) return res.status(400).json({ error: "Quest already completed." });
 
-            // Check answer for Q&A and daily quests
-            if (quest.type === "qa" || quest.type === "daily") {
-              const questData = JSON.parse(quest.quest_data || "{}");
-              if (!answer || answer.toLowerCase().trim() !== questData.answer?.toLowerCase().trim()) {
-                return res.status(400).json({ error: "Incorrect answer. Try again!" });
-              }
+        // Check answer for daily quests
+        if (quest.type === "daily") {
+          if (!answer || answer.toLowerCase().trim() !== quest.answer?.toLowerCase().trim()) {
+            return res.status(400).json({ error: "Incorrect answer. Try again!" });
+          }
+        }
+
+        // Add points to user
+        addPoints(
+          req.user.telegram_id,
+          quest.points_reward,
+          `quest_completion_${quest.type}`,
+          questId, // Use questId directly  
+          null,
+          (addPointsErr) => {
+            if (addPointsErr) {
+              return res
+                .status(500)
+                .json({ error: `Failed to add points: ${addPointsErr.message}` });
             }
 
-            addPoints(
-              req.user.telegram_id,
-              quest.points_reward,
-              `quest_completion_${quest.type}`,
-              quest.id,
-              null,
-              (addPointsErr) => {
-                if (addPointsErr) {
+            // Mark quest as completed
+            db.run(
+              `INSERT INTO UserQuests (user_id, quest_id) VALUES (?, ?)`,
+              [req.user.telegram_id, questId],
+              function (markErr) {
+                if (markErr) {
                   return res
                     .status(500)
-                    .json({ error: `Failed to add points: ${addPointsErr.message}` });
+                    .json({ error: `Failed to mark quest as completed: ${markErr.message}` });
                 }
-
-                db.run(
-                  `INSERT INTO UserQuests (user_id, quest_id) VALUES (?, ?)`,
-                  [req.user.telegram_id, questId],
-                  function (markErr) {
-                    if (markErr) {
-                      return res
-                        .status(500)
-                        .json({ error: `Failed to mark quest as completed: ${markErr.message}` });
-                    }
-                    
-                    let message = "Quest completed!";
-                    if (quest.type === 'daily') {
-                      message = `Day ${quest.day_number} quest completed! 🎉`;
-                    }
-                    
-                    return res.json({
-                      success: true,
-                      message: message,
-                      points_earned: quest.points_reward,
-                    });
-                  }
-                );
+                
+                let message = "Quest completed!";
+                if (quest.type === 'daily') {
+                  message = `Day ${quest.day_number} quest completed! 🎉`;
+                } else if (quest.type === 'social_follow') {
+                  message = "Social task completed! Thank you for joining!";
+                }
+                
+                return res.json({
+                  success: true,
+                  message: message,
+                  points_earned: quest.points_reward,
+                });
               }
             );
           }
         );
       }
-    }
-  );
+    );
+  }
 });
 
 app.get("/api/leaderboard", (req, res) => {
@@ -862,72 +943,6 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
   }
 });
 
-// Simple quest creation endpoint (GET for easier testing)
-app.get("/api/setup-quests", (req, res) => {
-  const adminKey = req.query.key;
-  
-  if (adminKey !== 'admin123') {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
-  
-  // Add multiple sample quests
-  const quests = [
-    {
-      title: "Day 1: P2P Trading",
-      description: "Learn about P2P trading on Bybit",
-      question: "What does Bybit's P2P platform allow users to do?",
-      answer: "Trade crypto directly",
-      day: 1,
-      type: "daily",
-      points: 20
-    },
-    {
-      title: "Day 2: Launchpad",
-      description: "Discover new token launches",
-      question: "What is the main use of Bybit Launchpad?",
-      answer: "Token launches", 
-      day: 2,
-      type: "daily",
-      points: 20
-    },
-    {
-      title: "Join Bybit Telegram",
-      description: "Join our official Telegram Group",
-      type: "social_follow",
-      points: 50,
-      url: "https://t.me/bybit_official",
-      chatId: "-1001234567890"
-    }
-  ];
-  
-  let addedCount = 0;
-  let totalQuests = quests.length;
-  
-  quests.forEach((quest, index) => {
-    const questData = quest.type === 'daily' 
-      ? JSON.stringify({ question: quest.question, answer: quest.answer })
-      : JSON.stringify({ url: quest.url, chatId: quest.chatId });
-    
-    const sql = quest.type === 'daily'
-      ? "INSERT INTO Quests (title, description, points_reward, type, quest_data, day_number, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)"
-      : "INSERT INTO Quests (title, description, points_reward, type, quest_data, is_active) VALUES (?, ?, ?, ?, ?, ?)";
-    
-    const params = quest.type === 'daily'
-      ? [quest.title, quest.description, quest.points, quest.type, questData, quest.day, true]
-      : [quest.title, quest.description, quest.points, quest.type, questData, true];
-    
-    db.run(sql, params, function(err) {
-      addedCount++;
-      if (addedCount === totalQuests) {
-        res.json({ 
-          success: true, 
-          message: `${totalQuests} quests added successfully`,
-          quests_added: totalQuests
-        });
-      }
-    });
-  });
-});
 
 //
 // Fallback for Single Page App (serve index.html on any unknown route)

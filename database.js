@@ -172,12 +172,10 @@ const initPostgreSQLSchema = async () => {
 
         console.log('PostgreSQL schema initialized successfully');
         
-        // Initialize event configuration and quests
+        // Initialize event configuration only
         await initializeEventConfig();
-        await addSocialQuestsSafely();
-        await addDailyQuestsSafely();
         
-        console.log('PostgreSQL initialization complete with quests');
+        console.log('PostgreSQL initialization complete');
         
     } catch (error) {
         console.error('Error setting up PostgreSQL schema:', error);
@@ -578,4 +576,4 @@ const addPointsSQLite = (userId, points, reason, relatedQuestId = null, relatedR
     });
 };
 
-module.exports = { db, initDb, addPoints, getCurrentEventDay, addSocialQuestsSafely, addDailyQuestsSafely };
+module.exports = { db, initDb, addPoints, getCurrentEventDay };
