@@ -6,7 +6,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
-const { db, initDb, addPoints, getCurrentEventDay } = require('./database');
+const { db, initDb, addPoints, getCurrentEventDay } = require('./database-postgres');
 
 const app = express();
 const PORT = process.env.PORT || 8080;

@@ -1,0 +1,541 @@
+{
+  "generated_at": "2025-06-11T06:20:41.529Z",
+  "production_url": "https://bybit-event-mini-app-production-ae87.up.railway.app",
+  "reports": [
+    {
+      "title": "📈 Engagement Analytics",
+      "timestamp": "2025-06-11T06:20:41.522Z",
+      "metrics": {
+        "total_transactions": 0,
+        "transaction_types": {},
+        "daily_activity": {}
+      }
+    },
+    {
+      "title": "🎯 Quest Analytics",
+      "timestamp": "2025-06-11T06:20:41.522Z",
+      "metrics": {
+        "total_quests": 32,
+        "total_completions": 0,
+        "quest_performance": [
+          {
+            "title": "Day 5: Copy Trading",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 6: Dual Asset",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Join Bybit Telegram",
+            "type": "social_follow",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 2: Launchpad",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 9: Derivatives",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 10: Futures Trading",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 8: Spot Trading",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 1: P2P",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 13: Grid Trading",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 11: Options Trading",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 12: Margin Trading",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 7: Bybit Card",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 14: DCA Bot",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 15: Yield Farming",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 16: Liquidity Mining",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 17: Staking Rewards",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 18: NFT Marketplace",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 19: Web3 Wallet",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 20: Cross Margin",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 21: Isolated Margin",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 22: Leverage Trading",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 26: Limit Orders",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 24: Take Profit",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 25: Market Orders",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 23: Stop Loss",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 27: API Trading",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 28: Mobile Trading",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 29: Security Features",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 30: Bybit Ecosystem",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 3: Puzzle Hunt",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Day 4: Launchpool",
+            "type": "daily",
+            "completions": 0,
+            "completion_rate": 100
+          },
+          {
+            "title": "Follow Bybit on X",
+            "type": "social_follow",
+            "completions": 0,
+            "completion_rate": 100
+          }
+        ],
+        "top_quests": [
+          {
+            "id": 1,
+            "title": "Day 5: Copy Trading",
+            "type": "daily",
+            "points_reward": 20,
+            "completion_count": 0,
+            "completed_by_users": null
+          },
+          {
+            "id": 2,
+            "title": "Day 6: Dual Asset",
+            "type": "daily",
+            "points_reward": 20,
+            "completion_count": 0,
+            "completed_by_users": null
+          },
+          {
+            "id": 3,
+            "title": "Join Bybit Telegram",
+            "type": "social_follow",
+            "points_reward": 50,
+            "completion_count": 0,
+            "completed_by_users": null
+          }
+        ]
+      }
+    },
+    {
+      "title": "🔗 Referral Analytics",
+      "timestamp": "2025-06-11T06:20:41.522Z",
+      "metrics": {
+        "total_referred_users": 0,
+        "total_referrers": 0,
+        "referral_rate": 0,
+        "top_referrers": []
+      }
+    }
+  ],
+  "raw_data": {
+    "debug": {
+      "total_users": 0,
+      "your_user": "NOT_FOUND",
+      "your_referrals": [],
+      "pending_for_you": [],
+      "all_users": [],
+      "all_pending": [],
+      "environment": "production"
+    },
+    "leaderboard": [],
+    "users": {
+      "timestamp": "2025-06-11T06:20:41.518Z",
+      "summary": {
+        "total_users": 0,
+        "total_points": null,
+        "avg_points": null
+      },
+      "total_users": 0,
+      "users": []
+    },
+    "quests": {
+      "timestamp": "2025-06-11T06:20:41.821Z",
+      "quest_completion_stats": [
+        {
+          "id": 1,
+          "title": "Day 5: Copy Trading",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 2,
+          "title": "Day 6: Dual Asset",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 3,
+          "title": "Join Bybit Telegram",
+          "type": "social_follow",
+          "points_reward": 50,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 4,
+          "title": "Day 2: Launchpad",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 5,
+          "title": "Day 9: Derivatives",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 6,
+          "title": "Day 10: Futures Trading",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 7,
+          "title": "Day 8: Spot Trading",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 8,
+          "title": "Day 1: P2P",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 9,
+          "title": "Day 13: Grid Trading",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 10,
+          "title": "Day 11: Options Trading",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 11,
+          "title": "Day 12: Margin Trading",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 12,
+          "title": "Day 7: Bybit Card",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 13,
+          "title": "Day 14: DCA Bot",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 14,
+          "title": "Day 15: Yield Farming",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 15,
+          "title": "Day 16: Liquidity Mining",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 16,
+          "title": "Day 17: Staking Rewards",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 17,
+          "title": "Day 18: NFT Marketplace",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 18,
+          "title": "Day 19: Web3 Wallet",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 19,
+          "title": "Day 20: Cross Margin",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 20,
+          "title": "Day 21: Isolated Margin",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 21,
+          "title": "Day 22: Leverage Trading",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 22,
+          "title": "Day 26: Limit Orders",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 23,
+          "title": "Day 24: Take Profit",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 24,
+          "title": "Day 25: Market Orders",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 25,
+          "title": "Day 23: Stop Loss",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 26,
+          "title": "Day 27: API Trading",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 27,
+          "title": "Day 28: Mobile Trading",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 28,
+          "title": "Day 29: Security Features",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 29,
+          "title": "Day 30: Bybit Ecosystem",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 30,
+          "title": "Day 3: Puzzle Hunt",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 31,
+          "title": "Day 4: Launchpool",
+          "type": "daily",
+          "points_reward": 20,
+          "completion_count": 0,
+          "completed_by_users": null
+        },
+        {
+          "id": 32,
+          "title": "Follow Bybit on X",
+          "type": "social_follow",
+          "points_reward": 50,
+          "completion_count": 0,
+          "completed_by_users": null
+        }
+      ]
+    },
+    "transactions": {
+      "timestamp": "2025-06-11T06:20:42.120Z",
+      "total_transactions": 0,
+      "transactions": []
+    }
+  }
+}

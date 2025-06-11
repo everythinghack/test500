@@ -1,0 +1,25 @@
+{
+  "total_users": 1,
+  "your_user": {
+    "telegram_id": "1170425263",
+    "username": "google_baba440",
+    "first_name": "MaiHu",
+    "referrer_id": null,
+    "points": 120,
+    "created_at": "2025-06-11 05:43:59"
+  },
+  "your_referrals": [],
+  "pending_for_you": [],
+  "all_users": [
+    {
+      "telegram_id": "1170425263",
+      "username": "google_baba440",
+      "first_name": "MaiHu",
+      "referrer_id": null,
+      "points": 120,
+      "created_at": "2025-06-11 05:43:59"
+    }
+  ],
+  "all_pending": [],
+  "environment": "production"
+}

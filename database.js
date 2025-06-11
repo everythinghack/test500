@@ -152,11 +152,18 @@ const initDb = () => {
         const socialQuests = [
             { 
                 title: 'Join Bybit Telegram', 
-                description: 'Join our official Telegram channel.', 
+                description: 'Join our official Telegram Group.', 
                 points_reward: 50, 
                 type: 'social_follow', 
                 quest_data: '{"url": "https://t.me/test3bybitG", "chatId": "-1002001387968"}' 
             },
+            { 
+                title: 'Join Bybit Telegram', 
+                description: 'Join our official Telegram channel.', 
+                points_reward: 50, 
+                type: 'social_follow', 
+                quest_data: '{"url": "https://t.me/test3bybitC", "chatId": "-1002033197403"}' 
+            },            
             { 
                 title: 'Follow Bybit on X', 
                 description: 'Follow our official X (Twitter) account.', 
