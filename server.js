@@ -862,25 +862,30 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
   }
 });
 
-// Quick admin endpoint to initialize quests
-app.post("/api/init-quests", (req, res) => {
+// Simple quest creation endpoint
+app.post("/api/add-sample-quest", (req, res) => {
   const adminKey = req.query.key;
   
   if (adminKey !== 'admin123') {
     return res.status(403).json({ error: "Unauthorized" });
   }
   
-  // Initialize quests directly
-  const { addSocialQuestsSafely, addDailyQuestsSafely } = require('./database');
-  
-  Promise.all([
-    addSocialQuestsSafely(),
-    addDailyQuestsSafely()
-  ]).then(() => {
-    res.json({ success: true, message: "Quests initialized successfully" });
-  }).catch(err => {
-    res.status(500).json({ error: err.message });
+  // Add a simple daily quest
+  const questData = JSON.stringify({
+    question: "What does Bybit's P2P platform allow users to do?",
+    answer: "Trade crypto directly"
   });
+  
+  db.run(
+    "INSERT INTO Quests (title, description, points_reward, type, quest_data, day_number, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ["Day 1: P2P Trading", "Learn about P2P trading on Bybit", 20, "daily", questData, 1, true],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, message: "Sample quest added", quest_id: this.lastID });
+    }
+  );
 });
 
 //
