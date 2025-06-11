@@ -177,6 +177,8 @@ const initPostgreSQLSchema = async () => {
         await addSocialQuestsSafely();
         await addDailyQuestsSafely();
         
+        console.log('PostgreSQL initialization complete with quests');
+        
     } catch (error) {
         console.error('Error setting up PostgreSQL schema:', error);
         throw error;
