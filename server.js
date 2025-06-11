@@ -529,7 +529,7 @@ app.post("/api/profile/uid", ensureUser, (req, res) => {
 // Hardcoded quests and tasks - easy to modify!
 const DAILY_QUESTS = [
   {
-    id: 'daily_1',
+    id: 1001,
     title: 'Day 1: P2P Trading',
     description: 'Learn about P2P trading on Bybit',
     points_reward: 20,
@@ -539,7 +539,7 @@ const DAILY_QUESTS = [
     answer: 'Trade crypto directly'
   },
   {
-    id: 'daily_2', 
+    id: 1002, 
     title: 'Day 2: Launchpad',
     description: 'Discover new token launches',
     points_reward: 20,
@@ -549,7 +549,7 @@ const DAILY_QUESTS = [
     answer: 'Token launches'
   },
   {
-    id: 'daily_3',
+    id: 1003,
     title: 'Day 3: Puzzle Hunt', 
     description: 'Join the puzzle hunt',
     points_reward: 20,
@@ -559,7 +559,7 @@ const DAILY_QUESTS = [
     answer: 'Puzzle pieces'
   },
   {
-    id: 'daily_4',
+    id: 1004,
     title: 'Day 4: Launchpool',
     description: 'Stake and earn rewards',
     points_reward: 20,
@@ -569,7 +569,7 @@ const DAILY_QUESTS = [
     answer: 'Stake tokens'
   },
   {
-    id: 'daily_5',
+    id: 1005,
     title: 'Day 5: Copy Trading',
     description: 'Copy expert traders',
     points_reward: 20,
@@ -582,7 +582,7 @@ const DAILY_QUESTS = [
 
 const SOCIAL_TASKS = [
   {
-    id: 'social_1',
+    id: 2001,
     title: 'Join Bybit Telegram Group',
     description: 'Join our official Telegram Group',
     points_reward: 50,
@@ -591,7 +591,7 @@ const SOCIAL_TASKS = [
     chatId: '-1001234567890'
   },
   {
-    id: 'social_2', 
+    id: 2002, 
     title: 'Join Bybit Telegram Channel',
     description: 'Join our official Telegram Channel',
     points_reward: 50,
@@ -600,7 +600,7 @@ const SOCIAL_TASKS = [
     chatId: '-1001234567891'
   },
   {
-    id: 'social_3',
+    id: 2003,
     title: 'Follow Bybit on X',
     description: 'Follow our official X (Twitter) account',
     points_reward: 50,
@@ -701,12 +701,12 @@ app.post("/api/quests/complete", ensureUser, (req, res) => {
           }
         }
 
-        // Add points to user
+        // Add points to user (don't use questId as foreign key since quest isn't in DB)
         addPoints(
           req.user.telegram_id,
           quest.points_reward,
           `quest_completion_${quest.type}`,
-          questId, // Use questId directly  
+          null, // No quest_id foreign key since quest is hardcoded
           null,
           (addPointsErr) => {
             if (addPointsErr) {
@@ -884,11 +884,10 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
     if (chatMember && ["member", "administrator", "creator"].includes(chatMember.status)) {
       // User is a member, award points for that quest
       const questId = req.body.questId;
-      const quest = await new Promise((resolve, reject) => {
-        db.get("SELECT * FROM Quests WHERE id = ?", [questId], (err, row) =>
-          err ? reject(err) : resolve(row)
-        );
-      });
+      
+      // Find quest in hardcoded data
+      const allQuests = [...DAILY_QUESTS, ...SOCIAL_TASKS];
+      const quest = allQuests.find(q => q.id == questId);
 
       if (!quest) {
         return res.status(404).json({ error: "Quest not found" });
@@ -899,7 +898,7 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
         userId,
         quest.points_reward,
         `quest_completion_${quest.type}`,
-        quest.id,
+        null, // No quest foreign key since quest is hardcoded
         null,
         (addPointsErr) => {
           if (addPointsErr) {
