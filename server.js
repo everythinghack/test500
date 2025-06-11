@@ -1149,29 +1149,42 @@ app.get("/api/admin/export/transactions", (req, res) => {
 
 
 
-// Data recovery endpoint for MaiHu's lost data
-app.post("/api/admin/recover-data", async (req, res) => {
+// Admin endpoint to update user points
+app.post("/api/admin/update-points", (req, res) => {
   const adminKey = req.query.key;
   
   if (adminKey !== 'admin123') {
     return res.status(403).json({ error: "Unauthorized. Admin key required." });
   }
   
-  try {
-    const { recoverMaiHuData } = require('./recover-maihu-data.js');
-    await recoverMaiHuData();
-    
-    res.json({
-      success: true,
-      message: "MaiHu's data recovery completed successfully",
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: "Data recovery failed", 
-      details: error.message
-    });
+  const { userId, points, reason } = req.body;
+  
+  if (!userId || points === undefined) {
+    return res.status(400).json({ error: "userId and points are required" });
   }
+  
+  // Use addPoints function to update points
+  addPoints(
+    userId,
+    points,
+    reason || 'admin_adjustment',
+    null,
+    null,
+    (err) => {
+      if (err) {
+        return res.status(500).json({ 
+          error: "Failed to update points", 
+          details: err.message 
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: `Updated ${userId} with ${points} points`,
+        timestamp: new Date().toISOString()
+      });
+    }
+  );
 });
 
 //

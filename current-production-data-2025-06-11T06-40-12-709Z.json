@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-06-11T06:40:12.710Z",
+  "source": "production_debug_endpoint",
+  "production_url": "https://bybit-event-mini-app-production-ae87.up.railway.app",
+  "user_data": {
+    "total_users": 0,
+    "your_user": "NOT_FOUND",
+    "your_referrals": [],
+    "pending_for_you": [],
+    "all_users": [],
+    "all_pending": [],
+    "environment": "production"
+  },
+  "leaderboard": []
+}
