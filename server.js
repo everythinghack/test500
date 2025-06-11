@@ -1042,6 +1042,108 @@ app.post("/api/admin/quests/:id/toggle", (req, res) => {
   });
 });
 
+// Export all users data - ADMIN ENDPOINT
+app.get("/api/admin/export/users", (req, res) => {
+  const adminKey = req.query.key;
+  
+  // Simple admin key check (you should use a proper admin key)
+  if (adminKey !== 'admin123') {
+    return res.status(403).json({ error: "Unauthorized. Admin key required." });
+  }
+  
+  db.all(`
+    SELECT 
+      u.telegram_id, 
+      u.username, 
+      u.first_name, 
+      u.points, 
+      u.bybit_uid, 
+      u.referrer_id,
+      u.created_at,
+      (SELECT COUNT(*) FROM Users WHERE referrer_id = u.telegram_id) as referral_count
+    FROM Users u 
+    ORDER BY u.created_at DESC
+  `, (err, users) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Get summary stats
+    db.get(`
+      SELECT 
+        COUNT(*) as total_users,
+        SUM(points) as total_points,
+        AVG(points) as avg_points
+      FROM Users
+    `, (statsErr, stats) => {
+      if (statsErr) return res.status(500).json({ error: statsErr.message });
+      
+      res.json({
+        timestamp: new Date().toISOString(),
+        summary: stats,
+        total_users: users.length,
+        users: users
+      });
+    });
+  });
+});
+
+// Export quest completion data - ADMIN ENDPOINT
+app.get("/api/admin/export/quests", (req, res) => {
+  const adminKey = req.query.key;
+  
+  if (adminKey !== 'admin123') {
+    return res.status(403).json({ error: "Unauthorized. Admin key required." });
+  }
+  
+  db.all(`
+    SELECT 
+      q.id,
+      q.title,
+      q.type,
+      q.points_reward,
+      COUNT(uq.user_id) as completion_count,
+      GROUP_CONCAT(uq.user_id) as completed_by_users
+    FROM Quests q
+    LEFT JOIN UserQuests uq ON q.id = uq.quest_id
+    GROUP BY q.id, q.title, q.type, q.points_reward
+    ORDER BY completion_count DESC
+  `, (err, questStats) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      quest_completion_stats: questStats
+    });
+  });
+});
+
+// Export point transactions - ADMIN ENDPOINT
+app.get("/api/admin/export/transactions", (req, res) => {
+  const adminKey = req.query.key;
+  
+  if (adminKey !== 'admin123') {
+    return res.status(403).json({ error: "Unauthorized. Admin key required." });
+  }
+  
+  db.all(`
+    SELECT 
+      pt.*,
+      u.username,
+      u.first_name
+    FROM PointTransactions pt
+    LEFT JOIN Users u ON pt.user_id = u.telegram_id
+    ORDER BY pt.timestamp DESC
+    LIMIT 1000
+  `, (err, transactions) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      total_transactions: transactions.length,
+      transactions: transactions
+    });
+  });
+});
+
 
 
 
