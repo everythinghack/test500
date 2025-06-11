@@ -576,4 +576,4 @@ const addPointsSQLite = (userId, points, reason, relatedQuestId = null, relatedR
     });
 };
 
-module.exports = { db, initDb, addPoints, getCurrentEventDay };
+module.exports = { db, initDb, addPoints, getCurrentEventDay, addSocialQuestsSafely, addDailyQuestsSafely };

@@ -861,6 +861,27 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
   }
 });
 
+// Quick admin endpoint to initialize quests
+app.post("/api/init-quests", (req, res) => {
+  const adminKey = req.query.key;
+  
+  if (adminKey !== 'admin123') {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+  
+  // Initialize quests directly
+  const { addSocialQuestsSafely, addDailyQuestsSafely } = require('./database');
+  
+  Promise.all([
+    addSocialQuestsSafely(),
+    addDailyQuestsSafely()
+  ]).then(() => {
+    res.json({ success: true, message: "Quests initialized successfully" });
+  }).catch(err => {
+    res.status(500).json({ error: err.message });
+  });
+});
+
 //
 // Fallback for Single Page App (serve index.html on any unknown route)
 //
