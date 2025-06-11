@@ -23,16 +23,70 @@
                 <p>Building Bybit City...</p>
             </div>
             
-            <div class="page-content" id="quest-page" style="display:none;">
-                <h2><i class="fas fa-hard-hat city-icon"></i> Construction Zone</h2>
-                <p class="section-description">Complete daily/weekly missions to build the city</p>
-                <div id="quest-list"></div>
-            </div>
-            
-            <div class="page-content" id="follow-page" style="display:none;">
-                <h2><i class="fas fa-satellite-dish city-icon"></i> Media Tower</h2>
-                <p class="section-description">Follow Bybit socials to increase global visibility</p>
-                <div id="follow-list"></div>
+            <div class="page-content" id="tasks-page" style="display:none;">
+                <h2><i class="fas fa-tasks city-icon"></i> Task Center</h2>
+                <p class="section-description">Complete various tasks to earn rewards and build the city</p>
+                
+                <!-- Task Category Tabs -->
+                <div class="task-tabs">
+                    <button class="task-tab active" data-category="daily">
+                        <i class="fas fa-calendar-day"></i> Daily Tasks
+                    </button>
+                    <button class="task-tab" data-category="weekly">
+                        <i class="fas fa-calendar-week"></i> Weekly Tasks
+                    </button>
+                    <button class="task-tab" data-category="onetime">
+                        <i class="fas fa-star"></i> One-time Tasks
+                    </button>
+                    <button class="task-tab" data-category="recurring">
+                        <i class="fas fa-sync-alt"></i> Recurring Tasks
+                    </button>
+                </div>
+                
+                <!-- Task Content Areas -->
+                <div class="task-content">
+                    <div id="daily-tasks" class="task-category-content active">
+                        <div class="task-section-header">
+                            <h3><i class="fas fa-sun"></i> Daily Tasks</h3>
+                            <p>Complete daily quests to build the city and earn points!</p>
+                        </div>
+                        <div id="daily-tasks-list"></div>
+                    </div>
+                    
+                    <div id="weekly-tasks" class="task-category-content">
+                        <div class="task-section-header">
+                            <h3><i class="fas fa-calendar-alt"></i> Weekly Tasks</h3>
+                            <p>Coming soon! Weekly challenges will be available here.</p>
+                        </div>
+                        <div id="weekly-tasks-list">
+                            <div class="coming-soon">
+                                <i class="fas fa-clock"></i>
+                                <p>Weekly tasks are coming soon!</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="onetime-tasks" class="task-category-content">
+                        <div class="task-section-header">
+                            <h3><i class="fas fa-trophy"></i> One-time Tasks</h3>
+                            <p>Join our community and follow us on social media!</p>
+                        </div>
+                        <div id="onetime-tasks-list"></div>
+                    </div>
+                    
+                    <div id="recurring-tasks" class="task-category-content">
+                        <div class="task-section-header">
+                            <h3><i class="fas fa-redo"></i> Recurring Tasks</h3>
+                            <p>Coming soon! Recurring tasks will be available here.</p>
+                        </div>
+                        <div id="recurring-tasks-list">
+                            <div class="coming-soon">
+                                <i class="fas fa-clock"></i>
+                                <p>Recurring tasks are coming soon!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="page-content" id="invite-page" style="display:none;">
@@ -68,8 +122,7 @@
         </main>
 
         <nav id="bottom-nav">
-            <button class="nav-btn" data-page="quest-page"><i class="fas fa-building"></i><br>Quests</button>
-            <button class="nav-btn" data-page="follow-page"><i class="fas fa-satellite"></i><br>Follow</button>
+            <button class="nav-btn" data-page="tasks-page"><i class="fas fa-tasks"></i><br>Tasks</button>
             <button class="nav-btn" data-page="invite-page"><i class="fas fa-users"></i><br>Invite</button>
             <button class="nav-btn" data-page="leaderboard-page"><i class="fas fa-medal"></i><br>Leaderboard</button>
             <button class="nav-btn" data-page="profile-page"><i class="fas fa-user-circle"></i><br>Profile</button>

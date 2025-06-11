@@ -599,5 +599,167 @@ main {
     font-style: italic;
 }
 
+/* Task Center Styles */
+#tasks-page h2::after {
+    background: linear-gradient(to right, var(--primary-color), #ff6b00);
+}
+
+/* Task Tabs Styling */
+.task-tabs {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    background: rgba(30, 30, 30, 0.6);
+    border-radius: 12px;
+    padding: 6px;
+    gap: 4px;
+    overflow-x: auto;
+}
+
+.task-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    padding: 12px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-align: center;
+    white-space: nowrap;
+    min-width: 80px;
+}
+
+.task-tab i {
+    display: block;
+    font-size: 1.2em;
+    margin-bottom: 4px;
+}
+
+.task-tab.active {
+    background: var(--accent-gradient);
+    color: white;
+    box-shadow: 0 2px 8px rgba(247, 166, 0, 0.3);
+    transform: translateY(-1px);
+}
+
+.task-tab:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+/* Task Content Areas */
+.task-content {
+    position: relative;
+}
+
+.task-category-content {
+    display: none;
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.task-category-content.active {
+    display: block;
+}
+
+@keyframes fadeInUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* Task Section Headers */
+.task-section-header {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.task-section-header h3 {
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+    font-size: 1.4em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.task-section-header h3 i {
+    color: var(--primary-color);
+}
+
+.task-section-header p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.95em;
+}
+
+/* Coming Soon Styling */
+.coming-soon {
+    text-align: center;
+    padding: 40px 20px;
+    background: rgba(30, 30, 30, 0.4);
+    border-radius: 12px;
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+}
+
+.coming-soon i {
+    font-size: 3em;
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+    opacity: 0.6;
+}
+
+.coming-soon p {
+    color: var(--text-secondary);
+    font-size: 1.1em;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Task List Specific Styling */
+#daily-tasks-list, #onetime-tasks-list {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Mobile Responsiveness for Task Tabs */
+@media (max-width: 480px) {
+    .task-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
+    .task-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .task-tab {
+        min-width: 70px;
+        font-size: 0.8em;
+        padding: 10px 6px;
+    }
+    
+    .task-tab i {
+        font-size: 1.1em;
+        margin-bottom: 2px;
+    }
+}
+
+/* Navigation button update for tasks page */
+#bottom-nav .nav-btn[data-page="tasks-page"] i {
+    color: var(--primary-color);
+}
+
 
 

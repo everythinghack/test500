@@ -111,8 +111,7 @@ async function initializeTelegramWebApp(tg) {
     const mainContent = document.getElementById("main-content");
     const pageContainer = {
       "loading-page": document.getElementById("loading-page"),
-      "quest-page": document.getElementById("quest-page"),
-      "follow-page": document.getElementById("follow-page"),
+      "tasks-page": document.getElementById("tasks-page"),
       "invite-page": document.getElementById("invite-page"),
       "leaderboard-page": document.getElementById("leaderboard-page"),
       "profile-page": document.getElementById("profile-page")
@@ -199,222 +198,265 @@ async function initializeTelegramWebApp(tg) {
         throw error;
       }
     }
-  
-    async function loadQuestPage() {
-      const questList = document.getElementById("quest-list");
-      questList.innerHTML = "<p>Loading daily quests...</p>";
-  
+
+    // Global variable to track current task category
+    let currentTaskCategory = 'daily';
+
+    async function loadTasksPage() {
       try {
+        // Setup tab switching functionality
+        setupTaskTabs();
+        
+        // Load all task data
         const response = await apiRequest("/quests");
         const currentDay = response.current_day;
         const quests = response.quests || [];
         
-        // Filter for daily and qa quests
-        const dailyQuests = quests.filter((q) => q.type === "daily" || q.type === "qa");
-  
-        if (dailyQuests.length === 0) {
-          questList.innerHTML =
-            "<p>No quests available at the moment.</p>";
-          return;
+        // Store globally for tab switching
+        window.tasksData = { currentDay, quests };
+        
+        // Load the default (daily) category
+        await loadTaskCategory('daily');
+      } catch (error) {
+        console.error("APP_JS: Could not load tasks:", error);
+        document.getElementById("daily-tasks-list").innerHTML =
+          "<p>Could not load tasks. Please try refreshing.</p>";
+      }
+    }
+
+    function setupTaskTabs() {
+      const taskTabs = document.querySelectorAll('.task-tab');
+      const taskContents = document.querySelectorAll('.task-category-content');
+      
+      taskTabs.forEach(tab => {
+        tab.addEventListener('click', async () => {
+          const category = tab.dataset.category;
+          
+          // Update active tab
+          taskTabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          
+          // Update active content
+          taskContents.forEach(content => content.classList.remove('active'));
+          document.getElementById(`${category}-tasks`).classList.add('active');
+          
+          // Load category content
+          currentTaskCategory = category;
+          await loadTaskCategory(category);
+        });
+      });
+    }
+
+    async function loadTaskCategory(category) {
+      const { currentDay, quests } = window.tasksData || { currentDay: 1, quests: [] };
+      
+      switch (category) {
+        case 'daily':
+          await loadDailyTasks(currentDay, quests);
+          break;
+        case 'onetime':
+          await loadOneTimeTasks(quests);
+          break;
+        case 'weekly':
+        case 'recurring':
+          // These are placeholder for now
+          break;
+      }
+    }
+
+    async function loadDailyTasks(currentDay, quests) {
+      const dailyTasksList = document.getElementById("daily-tasks-list");
+      dailyTasksList.innerHTML = "<p>Loading daily tasks...</p>";
+
+      // Filter for daily and qa quests
+      const dailyQuests = quests.filter((q) => q.type === "daily" || q.type === "qa");
+
+      if (dailyQuests.length === 0) {
+        dailyTasksList.innerHTML = "<p>No daily tasks available at the moment.</p>";
+        return;
+      }
+
+      dailyTasksList.innerHTML = `
+        <div class="event-status">
+          <h3>🏙️ Bybit City 30-Day Challenge</h3>
+          <p><strong>Day ${currentDay}/30</strong> • Complete daily quests to build the city!</p>
+        </div>
+      `;
+
+      dailyQuests.forEach((quest) => {
+        const questData = JSON.parse(quest.quest_data || "{}");
+        const item = document.createElement("div");
+        
+        // Different styling based on quest status
+        if (quest.is_completed) {
+          item.className = "task-item completed";
+        } else if (quest.is_available) {
+          item.className = "task-item available";
+        } else {
+          item.className = "task-item locked";
         }
-  
-        questList.innerHTML = `
-          <div class="event-status">
-            <h3>🏙️ Bybit City 30-Day Challenge</h3>
-            <p><strong>Day ${currentDay}/30</strong> • Complete daily quests to build the city!</p>
-          </div>
-        `;
-  
-        dailyQuests.forEach((quest) => {
-          const questData = JSON.parse(quest.quest_data || "{}");
-          const item = document.createElement("div");
-          
-          // Different styling based on quest status
-          if (quest.is_completed) {
-            item.className = "task-item completed";
-          } else if (quest.is_available) {
-            item.className = "task-item available";
-          } else {
-            item.className = "task-item locked";
-          }
-          
-          let statusHtml = "";
-          if (quest.is_completed) {
-            statusHtml = `<button disabled><i class="fas fa-check"></i> Completed</button>`;
-          } else if (quest.is_available) {
-            statusHtml = `
-              <input type="text" placeholder="Your answer" class="quest-answer-input">
-              <button data-quest-id="${quest.id}" class="submit-answer-btn">Submit Answer</button>
-            `;
-          } else {
-            statusHtml = `<button disabled><i class="fas fa-lock"></i> Available on Day ${quest.day_number}</button>`;
-          }
-          
-          item.innerHTML = `
-            <h3>
-              ${quest.title} 
-              <span class="points">${quest.points_reward} BP</span>
-              ${quest.type === 'daily' ? `<span class="day-badge">Day ${quest.day_number}</span>` : ''}
-            </h3>
-            <p>${quest.description}</p>
-            ${questData.question ? `<p class="question"><strong>Question:</strong> ${questData.question}</p>` : ''}
-            ${statusHtml}
+        
+        let statusHtml = "";
+        if (quest.is_completed) {
+          statusHtml = `<button disabled><i class="fas fa-check"></i> Completed</button>`;
+        } else if (quest.is_available) {
+          statusHtml = `
+            <input type="text" placeholder="Your answer" class="quest-answer-input">
+            <button data-quest-id="${quest.id}" class="submit-answer-btn">Submit Answer</button>
           `;
-          questList.appendChild(item);
-  
-          if (!quest.is_completed && quest.is_available) {
-            const button = item.querySelector(".submit-answer-btn");
-            const input = item.querySelector(".quest-answer-input");
-  
-            button.addEventListener("click", async () => {
-              const answer = input.value.trim();
-              if (!answer) {
-                tg.showAlert("Please enter an answer.");
-                return;
-              }
-  
-              button.disabled = true;
-              button.textContent = "Submitting...";
-              
-              try {
-                const result = await apiRequest("/quests/complete", "POST", {
-                  questId: quest.id,
-                  answer
-                });
-                if (result.success) {
-                  tg.showAlert("✅ " + result.message);
-                  await loadQuestPage();
-                  await loadProfilePage();
-                } else {
-                  tg.showAlert("❌ " + (result.error || "Answer incorrect"));
-                  button.disabled = false;
-                  button.textContent = "Submit Answer";
-                }
-              } catch (err) {
-                console.error("APP_JS: Error submitting quest:", err);
-                tg.showAlert("Submission failed. Check console.");
+        } else {
+          statusHtml = `<button disabled><i class="fas fa-lock"></i> Available on Day ${quest.day_number}</button>`;
+        }
+        
+        item.innerHTML = `
+          <h3>
+            ${quest.title} 
+            <span class="points">${quest.points_reward} BP</span>
+            ${quest.type === 'daily' ? `<span class="day-badge">Day ${quest.day_number}</span>` : ''}
+          </h3>
+          <p>${quest.description}</p>
+          ${questData.question ? `<p class="question"><strong>Question:</strong> ${questData.question}</p>` : ''}
+          ${statusHtml}
+        `;
+        dailyTasksList.appendChild(item);
+
+        if (!quest.is_completed && quest.is_available) {
+          const button = item.querySelector(".submit-answer-btn");
+          const input = item.querySelector(".quest-answer-input");
+
+          button.addEventListener("click", async () => {
+            const answer = input.value.trim();
+            if (!answer) {
+              tg.showAlert("Please enter an answer.");
+              return;
+            }
+
+            button.disabled = true;
+            button.textContent = "Submitting...";
+            
+            try {
+              const result = await apiRequest("/quests/complete", "POST", {
+                questId: quest.id,
+                answer
+              });
+              if (result.success) {
+                tg.showAlert("✅ " + result.message);
+                await loadTasksPage();
+                await loadProfilePage();
+              } else {
+                tg.showAlert("❌ " + (result.error || "Answer incorrect"));
                 button.disabled = false;
                 button.textContent = "Submit Answer";
               }
-            });
-          }
-        });
-      } catch (error) {
-        console.error("APP_JS: Could not load quests:", error);
-        questList.innerHTML =
-          "<p>Could not load quests. Please try refreshing.</p>";
-      }
-    }
-  
-    async function loadFollowPage() {
-      const followList = document.getElementById("follow-list");
-      followList.innerHTML = "<p>Loading social tasks...</p>";
-  
-      try {
-        const response = await apiRequest("/quests");
-        
-        // Handle both old format (direct array) and new format (object with quests array)
-        const quests = response.quests || response;
-        
-        const socialQuests = quests.filter((q) => q.type === "social_follow");
-  
-        if (socialQuests.length === 0) {
-          followList.innerHTML =
-            "<p>No social tasks available at the moment.</p>";
-          return;
-        }
-  
-        followList.innerHTML = "";
-  
-        socialQuests.forEach((quest) => {
-          const questData = JSON.parse(quest.quest_data || "{}");
-          const item = document.createElement("div");
-          item.className = "task-item";
-          item.innerHTML = `
-            <h3>${quest.title} <span class="points">${quest.points_reward} BP</span></h3>
-            <p>${quest.description}</p>
-            ${
-              quest.is_completed
-                ? `<button disabled><i class="fas fa-check"></i> Completed</button>`
-                : `<button data-quest-id="${quest.id}" data-url="${questData.url ||
-                    "#"}" data-chat-id="${questData.chatId || ""}" class="join-btn">Join</button>
-                   <button data-quest-id="${quest.id}" data-chat-id="${questData.chatId ||
-                    ""}" class="verify-btn" style="display:none;">Verify</button>`
+            } catch (err) {
+              console.error("APP_JS: Error submitting quest:", err);
+              tg.showAlert("Submission failed. Check console.");
+              button.disabled = false;
+              button.textContent = "Submit Answer";
             }
-          `;
-          followList.appendChild(item);
-  
-          if (!quest.is_completed) {
-            const joinBtn = item.querySelector(".join-btn");
-            const verifyBtn = item.querySelector(".verify-btn");
-  
-            joinBtn.addEventListener("click", () => {
-              const url = joinBtn.dataset.url;
-              if (url && url !== "#") {
-                tg.openLink(url);
-                joinBtn.style.display = "none";
-                verifyBtn.style.display = "inline-block";
-              }
-            });
-  
-            verifyBtn.addEventListener("click", async () => {
-              const questId = verifyBtn.dataset.questId;
-              const chatId = verifyBtn.dataset.chatId;
-              verifyBtn.disabled = true;
-              verifyBtn.textContent = "Verifying...";
-  
-              try {
-                if (!chatId) {
-                  // If no chatId (e.g. Twitter), just mark complete
-                  const result = await apiRequest("/quests/complete", "POST", {
-                    questId
-                  });
-                  tg.showPopup({
-                    title: "Success!",
-                    message: result.message,
-                    buttons: [{ type: "ok" }]
-                  });
-                  await loadFollowPage();
-                  await loadProfilePage();
-                  return;
-                }
-  
-                // Otherwise verify membership on Telegram
-                const result = await apiRequest("/verify/telegram", "POST", {
-                  questId,
-                  chatId
+          });
+        }
+      });
+    }
+
+    async function loadOneTimeTasks(quests) {
+      const oneTimeTasksList = document.getElementById("onetime-tasks-list");
+      oneTimeTasksList.innerHTML = "<p>Loading one-time tasks...</p>";
+
+      // Filter for social follow quests (these are one-time)
+      const socialQuests = quests.filter((q) => q.type === "social_follow");
+
+      if (socialQuests.length === 0) {
+        oneTimeTasksList.innerHTML = "<p>No one-time tasks available at the moment.</p>";
+        return;
+      }
+
+      oneTimeTasksList.innerHTML = "";
+
+      socialQuests.forEach((quest) => {
+        const questData = JSON.parse(quest.quest_data || "{}");
+        const item = document.createElement("div");
+        item.className = "task-item";
+        item.innerHTML = `
+          <h3>${quest.title} <span class="points">${quest.points_reward} BP</span></h3>
+          <p>${quest.description}</p>
+          ${
+            quest.is_completed
+              ? `<button disabled><i class="fas fa-check"></i> Completed</button>`
+              : `<button data-quest-id="${quest.id}" data-url="${questData.url ||
+                  "#"}" data-chat-id="${questData.chatId || ""}" class="join-btn">Join</button>
+                 <button data-quest-id="${quest.id}" data-chat-id="${questData.chatId ||
+                  ""}" class="verify-btn" style="display:none;">Verify</button>`
+          }
+        `;
+        oneTimeTasksList.appendChild(item);
+
+        if (!quest.is_completed) {
+          const joinBtn = item.querySelector(".join-btn");
+          const verifyBtn = item.querySelector(".verify-btn");
+
+          joinBtn.addEventListener("click", () => {
+            const url = joinBtn.dataset.url;
+            if (url && url !== "#") {
+              tg.openLink(url);
+              joinBtn.style.display = "none";
+              verifyBtn.style.display = "inline-block";
+            }
+          });
+
+          verifyBtn.addEventListener("click", async () => {
+            const questId = verifyBtn.dataset.questId;
+            const chatId = verifyBtn.dataset.chatId;
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = "Verifying...";
+
+            try {
+              if (!chatId) {
+                // If no chatId (e.g. Twitter), just mark complete
+                const result = await apiRequest("/quests/complete", "POST", {
+                  questId
                 });
-                if (result.verified || result.alreadyVerified) {
-                  tg.showPopup({
-                    title: "Success!",
-                    message: result.message,
-                    buttons: [{ type: "ok" }]
-                  });
-                  await loadFollowPage();
-                  await loadProfilePage();
-                } else {
-                  tg.showPopup({
-                    title: "Not Verified",
-                    message: result.message,
-                    buttons: [{ type: "ok" }]
-                  });
-                  verifyBtn.disabled = false;
-                  verifyBtn.textContent = "Verify";
-                }
-              } catch (err) {
-                console.error("APP_JS: Failed to verify quest:", err);
-                tg.showAlert("Verification failed. Please try again.");
+                tg.showPopup({
+                  title: "Success!",
+                  message: result.message,
+                  buttons: [{ type: "ok" }]
+                });
+                await loadTaskCategory('onetime');
+                await loadProfilePage();
+                return;
+              }
+
+              // Otherwise verify membership on Telegram
+              const result = await apiRequest("/verify/telegram", "POST", {
+                questId,
+                chatId
+              });
+              if (result.verified || result.alreadyVerified) {
+                tg.showPopup({
+                  title: "Success!",
+                  message: result.message,
+                  buttons: [{ type: "ok" }]
+                });
+                await loadTaskCategory('onetime');
+                await loadProfilePage();
+              } else {
+                tg.showPopup({
+                  title: "Not Verified",
+                  message: result.message,
+                  buttons: [{ type: "ok" }]
+                });
                 verifyBtn.disabled = false;
                 verifyBtn.textContent = "Verify";
               }
-            });
-          }
-        });
-      } catch (error) {
-        console.error("APP_JS: Could not load social tasks:", error);
-        followList.innerHTML =
-          "<p>Could not load social tasks. Please try refreshing.</p>";
-      }
+            } catch (err) {
+              console.error("APP_JS: Failed to verify quest:", err);
+              tg.showAlert("Verification failed. Please try again.");
+              verifyBtn.disabled = false;
+              verifyBtn.textContent = "Verify";
+            }
+          });
+        }
+      });
     }
   
     async function loadInvitePage() {
@@ -551,11 +593,8 @@ async function initializeTelegramWebApp(tg) {
         btn.classList.toggle("active", btn.dataset.page === pageId);
       });
       switch (pageId) {
-        case "quest-page":
-          loadQuestPage();
-          break;
-        case "follow-page":
-          loadFollowPage();
+        case "tasks-page":
+          loadTasksPage();
           break;
         case "invite-page":
           loadInvitePage();
@@ -583,7 +622,7 @@ async function initializeTelegramWebApp(tg) {
   
       try {
         await loadProfilePage();
-        showPage("quest-page");
+        showPage("tasks-page");
       } catch (err) {
         console.error("APP_JS: initializeApp failed:", err);
         pageContainer["loading-page"].innerHTML =
