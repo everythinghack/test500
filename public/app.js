@@ -258,10 +258,24 @@ async function initializeTelegramWebApp(tg) {
           await loadOneTimeTasks(quests);
           break;
         case 'weekly':
+          await loadWeeklyTasks();
+          break;
         case 'recurring':
-          // These are placeholder for now
+          await loadRecurringTasks();
           break;
       }
+    }
+
+    async function loadWeeklyTasks() {
+      // Weekly tasks content is already in HTML with "Coming soon!" message
+      // No additional JavaScript needed as the static content is already displayed
+      console.log("Weekly tasks section displayed (coming soon)");
+    }
+
+    async function loadRecurringTasks() {
+      // Recurring tasks content is already in HTML with "Coming soon!" message  
+      // No additional JavaScript needed as the static content is already displayed
+      console.log("Recurring tasks section displayed (coming soon)");
     }
 
     async function loadDailyTasks(currentDay, quests) {

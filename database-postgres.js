@@ -410,7 +410,29 @@ const addDailyQuestsSafely = async () => {
 const getCurrentEventDay = (callback) => {
     db.get("SELECT start_date FROM EventConfig WHERE id = 1", [], (err, config) => {
         if (err || !config) {
-            return callback(err || new Error("Event config not found"), null);
+            // Auto-create EventConfig if it doesn't exist
+            console.log("EventConfig not found, creating it...");
+            
+            const startDate = new Date();
+            startDate.setUTCHours(0, 0, 0, 0);
+            const endDate = new Date(startDate);
+            endDate.setUTCDate(startDate.getUTCDate() + 30);
+            
+            db.run(
+                "INSERT OR REPLACE INTO EventConfig (id, event_name, start_date, end_date) VALUES (1, 'Bybit City 30-Day Challenge', ?, ?)",
+                [startDate.toISOString(), endDate.toISOString()],
+                function(insertErr) {
+                    if (insertErr) {
+                        console.error("Failed to create EventConfig:", insertErr);
+                        return callback(insertErr, null);
+                    }
+                    
+                    console.log("EventConfig created successfully");
+                    // Return day 1 for newly created event
+                    callback(null, 1);
+                }
+            );
+            return;
         }
         
         const startDate = new Date(config.start_date);
