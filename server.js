@@ -6,7 +6,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
-const { db, initDb, addPoints, getCurrentEventDay } = require('./database-postgres');
+const { db, initDb, addPoints, getCurrentEventDay } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -26,10 +26,7 @@ const MINI_APP_URL =
 // For local testing, allow running without bot token
 const IS_LOCAL = process.env.NODE_ENV !== 'production' && MINI_APP_URL.includes('localhost');
 
-if (
-  !BOT_TOKEN &&
-  !IS_LOCAL
-) {
+if (!BOT_TOKEN && !IS_LOCAL) {
   console.error(
     "\n!!! CRITICAL ERROR: TELEGRAM_BOT_TOKEN environment variable is required. Bot and Mini App launch will fail. !!!\n"
   );
@@ -452,25 +449,6 @@ const ensureUser = async (req, res, next) => {
 };
 
 //
-// Verify Telegram user data
-//
-app.post("/api/verify-telegram", (req, res) => {
-  const { initData, user } = req.body;
-
-  if (!initData || !user || !user.id) {
-    return res.status(400).json({ error: "Invalid Telegram data" });
-  }
-
-  // In production, verify initData signature via Telegram API
-  res.json({
-    success: true,
-    telegram_id: user.id,
-    username: user.username,
-    first_name: user.first_name,
-  });
-});
-
-//
 // --- API ENDPOINTS (protected by ensureUser when needed) ---
 //
 
@@ -494,8 +472,6 @@ app.get("/api/profile", ensureUser, (req, res) => {
     (err, profile) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!profile) return res.status(404).json({ error: "Profile not found" });
-
-
       return res.json(profile);
     }
   );
@@ -689,37 +665,6 @@ app.post("/api/quests/complete", ensureUser, (req, res) => {
   );
 });
 
-
-app.get("/api/referrals/history", ensureUser, (req, res) => {
-  db.all(
-    `
-      SELECT 
-        u.telegram_id, 
-        u.username, 
-        u.first_name, 
-        u.points AS points_earned_by_referral,
-        COALESCE(
-          (
-            SELECT SUM(pt.points_change)
-            FROM PointTransactions pt
-            WHERE 
-              pt.user_id = ? 
-              AND pt.reason = 'referral_bonus' 
-              AND pt.related_referred_user_id = u.telegram_id
-          ), 
-          0
-        ) AS points_earned_from_this_referral
-      FROM Users u
-      WHERE u.referrer_id = ?
-    `,
-    [req.user.telegram_id, req.user.telegram_id],
-    (err, referrals) => {
-      if (err) return res.status(500).json({ error: err.message });
-      return res.json(referrals || []);
-    }
-  );
-});
-
 app.get("/api/leaderboard", (req, res) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   db.all(
@@ -732,495 +677,63 @@ app.get("/api/leaderboard", (req, res) => {
   );
 });
 
-// Quest management endpoint - shows ALL quests including inactive
-app.get("/api/admin/quests", (req, res) => {
-  db.all("SELECT * FROM Quests ORDER BY id", (err, quests) => {
-    if (err) return res.status(500).json({ error: err.message });
-    return res.json(quests || []);
-  });
-});
+app.get("/api/referrals", ensureUser, (req, res) => {
+  console.log(`SERVER: /api/referrals called for user ${req.user.telegram_id}`);
 
-// Debug referral system - simpler version
-app.get("/api/debug/referrals", (req, res) => {
-  db.all("SELECT telegram_id, username, first_name, referrer_id, points, created_at FROM Users ORDER BY created_at DESC", (err, users) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    db.all("SELECT * FROM PendingReferrals ORDER BY timestamp DESC", (err2, pending) => {
-      if (err2) return res.status(500).json({ error: err2.message });
-      
-      // Find specific user 1170425263
-      const yourUser = users.find(u => u.telegram_id === '1170425263');
-      const yourReferrals = users.filter(u => u.referrer_id === '1170425263');
-      const pendingForYou = pending.filter(p => p.referrer_telegram_id === '1170425263');
-      
-      res.json({
-        total_users: users.length,
-        your_user: yourUser || "NOT_FOUND",
-        your_referrals: yourReferrals,
-        pending_for_you: pendingForYou,
-        all_users: users,
-        all_pending: pending,
-        environment: process.env.NODE_ENV || 'development'
-      });
-    });
-  });
-});
-
-
-// Comprehensive referral debug endpoint
-app.get("/api/check-referrals", (req, res) => {
-  const targetUserId = req.query.userId || '1170425263';
-  
-  Promise.all([
-    // Check if target user exists
-    new Promise((resolve, reject) => {
-      db.get("SELECT * FROM Users WHERE telegram_id = ?", [targetUserId], (err, row) => {
-        err ? reject(err) : resolve(row);
-      });
-    }),
-    // Get referrals for target user
-    new Promise((resolve, reject) => {
-      db.all("SELECT * FROM Users WHERE referrer_id = ?", [targetUserId], (err, rows) => {
-        err ? reject(err) : resolve(rows);
-      });
-    }),
-    // Get pending referrals for target user
-    new Promise((resolve, reject) => {
-      db.all("SELECT * FROM PendingReferrals WHERE referrer_telegram_id = ?", [targetUserId], (err, rows) => {
-        err ? reject(err) : resolve(rows);
-      });
-    }),
-    // Get all users (limited to last 20)
-    new Promise((resolve, reject) => {
-      db.all("SELECT telegram_id, username, first_name, referrer_id, points, created_at FROM Users ORDER BY created_at DESC LIMIT 20", (err, rows) => {
-        err ? reject(err) : resolve(rows);
-      });
-    }),
-    // Get all pending referrals
-    new Promise((resolve, reject) => {
-      db.all("SELECT * FROM PendingReferrals ORDER BY timestamp DESC LIMIT 10", (err, rows) => {
-        err ? reject(err) : resolve(rows);
-      });
-    })
-  ]).then(([targetUser, userReferrals, userPending, allUsers, allPending]) => {
-    
-    // Analyze the referral system
-    const analysis = {
-      target_user_found: !!targetUser,
-      target_user: targetUser,
-      target_user_referrals: userReferrals,
-      target_user_pending: userPending,
-      total_users_in_db: allUsers.length,
-      recent_users: allUsers,
-      all_pending_referrals: allPending,
-      
-      // Potential issues
-      potential_issues: [],
-      recommendations: []
-    };
-    
-    // Check for issues
-    if (!targetUser) {
-      analysis.potential_issues.push(`User ${targetUserId} not found in database`);
-      analysis.recommendations.push("User needs to open Mini App first via bot");
-    }
-    
-    if (targetUser && userReferrals.length === 0 && userPending.length === 0) {
-      analysis.potential_issues.push("No referrals or pending referrals found");
-      analysis.recommendations.push("Check if friends actually clicked the referral link and opened the Mini App");
-    }
-    
-    if (userPending.length > 0) {
-      analysis.potential_issues.push("Pending referrals exist but not processed");
-      analysis.recommendations.push("Check if referred users have opened the Mini App");
-    }
-    
-    res.json(analysis);
-    
-  }).catch(err => {
-    res.status(500).json({ error: err.message });
-  });
-});
-
-// Debug bot configuration
-app.get("/api/debug/bot-config", (req, res) => {
-  const config = {
-    bot_token_exists: !!BOT_TOKEN,
-    bot_token_length: BOT_TOKEN ? BOT_TOKEN.length : 0,
-    mini_app_url: MINI_APP_URL,
-    webhook_url: MINI_APP_URL + '/api/telegram/webhook',
-    bot_initialized: !!bot,
-    port: PORT,
-    environment: process.env.NODE_ENV || 'development',
-    railway_environment: !!process.env.RAILWAY_ENVIRONMENT
-  };
-  
-  // Test webhook URL accessibility
-  if (bot) {
-    bot.getWebHookInfo().then(webhookInfo => {
-      res.json({
-        ...config,
-        webhook_info: webhookInfo
-      });
-    }).catch(err => {
-      res.json({
-        ...config,
-        webhook_error: err.message
-      });
-    });
-  } else {
-    res.json({
-      ...config,
-      webhook_info: "Bot not initialized"
-    });
-  }
-});
-
-// Webhook health check
-app.get("/api/telegram/webhook", (req, res) => {
-  res.json({
-    status: "webhook_endpoint_active",
-    bot_configured: !!bot,
-    mini_app_url: MINI_APP_URL,
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Debug current quest response format
-app.get("/api/debug/quest-response", ensureUser, (req, res) => {
-  getCurrentEventDay((err, currentDay) => {
-    if (err) {
-      return res.json({
-        error: "Could not get current day",
-        details: err.message
-      });
-    }
-
-    db.all(
-      `
-        SELECT 
-          q.id, 
-          q.title, 
-          q.description, 
-          q.points_reward, 
-          q.type, 
-          q.quest_data,
-          q.day_number,
-          CASE WHEN uq.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_completed,
-          CASE 
-            WHEN q.type = 'daily' AND q.day_number <= ? THEN 1
-            WHEN q.type != 'daily' THEN 1
-            ELSE 0
-          END AS is_available
-        FROM Quests q
-        LEFT JOIN UserQuests uq 
-          ON q.id = uq.quest_id 
-          AND uq.user_id = ?
-        WHERE q.is_active = TRUE
-        ORDER BY 
-          CASE q.type 
-            WHEN 'daily' THEN q.day_number 
-            ELSE 999 
-          END,
-          q.id
-      `,
-      [currentDay, req.user.telegram_id],
-      (err, quests) => {
-        if (err) {
-          return res.json({
-            error: "Database error",
-            details: err.message
-          });
-        }
-        
-        const socialQuests = (quests || []).filter(q => q.type === 'social_follow');
-        
-        res.json({
-          current_day: currentDay,
-          total_quests: (quests || []).length,
-          social_quests_count: socialQuests.length,
-          social_quests: socialQuests,
-          all_quests: quests || [],
-          user_id: req.user.telegram_id
-        });
-      }
-    );
-  });
-});
-
-// Test webhook manually
-app.post("/api/debug/test-webhook", (req, res) => {
-  const { userId, referrerId } = req.body;
-  
-  if (!userId) {
-    return res.status(400).json({ error: "userId required" });
-  }
-  
-  // Simulate webhook payload
-  const simulatedUpdate = {
-    message: {
-      chat: { id: userId },
-      from: { id: parseInt(userId) },
-      text: referrerId ? `/start ref_${referrerId}` : '/start'
-    }
-  };
-  
-  console.log('MANUAL_TEST: Simulating webhook with:', simulatedUpdate);
-  
-  // Call the same logic as the webhook
-  const msg = simulatedUpdate.message;
-  const chatId = msg.chat.id;
-  const newUserId = msg.from.id;
-  const commandParam = msg.text?.match(/\/start(?: (.+))?/)?.[1] || null;
-  
-  res.json({
-    success: true,
-    processed: {
-      chatId,
-      newUserId,
-      commandParam,
-      message: "Webhook logic would process this request"
-    }
-  });
-});
-
-// Add new quest endpoint
-app.post("/api/admin/add-quest", (req, res) => {
-  const { title, description, points_reward, type, quest_data } = req.body;
-  
-  // Validate required fields
-  if (!title || !description || !points_reward || !type) {
-    return res.status(400).json({ 
-      error: "Missing required fields: title, description, points_reward, type" 
-    });
-  }
-  
-  // Validate quest type
-  if (!['qa', 'social_follow'].includes(type)) {
-    return res.status(400).json({ 
-      error: "type must be 'qa' or 'social_follow'" 
-    });
-  }
-  
-  // Insert new quest
-  db.run(
-    `INSERT INTO Quests (title, description, points_reward, type, quest_data, is_active) 
-     VALUES (?, ?, ?, ?, ?, TRUE)`,
-    [title, description, points_reward, type, quest_data || '{}'],
-    function(err) {
+  // First get the referral users
+  db.all(
+    `
+      SELECT
+        u.telegram_id AS referred_id,
+        u.username    AS referred_username,
+        u.first_name  AS referred_first_name,
+        u.points      AS points_earned,
+        u.created_at  AS created_at
+      FROM Users u
+      WHERE u.referrer_id = ?
+      ORDER BY u.created_at DESC
+    `,
+    [req.user.telegram_id],
+    (err, referrals) => {
       if (err) {
+        console.error(
+          `SERVER: Error fetching referrals for user ${req.user.telegram_id}:`,
+          err.message
+        );
         return res.status(500).json({ error: err.message });
       }
+
+      const safeReferrals = Array.isArray(referrals) ? referrals : [];
       
-      res.json({
-        success: true,
-        message: "Quest added successfully",
-        quest_id: this.lastID,
-        quest: { title, description, points_reward, type }
-      });
-    }
-  );
-});
+      // Now get the total referral bonus points actually received
+      db.get(
+        `
+          SELECT 
+            COALESCE(SUM(points_change), 0) AS total_referral_bonus
+          FROM PointTransactions 
+          WHERE user_id = ? AND reason = 'referral_bonus'
+        `,
+        [req.user.telegram_id],
+        (bonusErr, bonusResult) => {
+          if (bonusErr) {
+            console.error(
+              `SERVER: Error fetching referral bonus for user ${req.user.telegram_id}:`,
+              bonusErr.message
+            );
+            return res.status(500).json({ error: bonusErr.message });
+          }
 
-app.post("/api/admin/quests/:id/toggle", (req, res) => {
-  const questId = parseInt(req.params.id, 10);
-  
-  db.get("SELECT is_active FROM Quests WHERE id = ?", [questId], (err, quest) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!quest) return res.status(404).json({ error: "Quest not found" });
-    
-    const newStatus = quest.is_active ? 0 : 1;
-    db.run("UPDATE Quests SET is_active = ? WHERE id = ?", [newStatus, questId], function(updateErr) {
-      if (updateErr) return res.status(500).json({ error: updateErr.message });
-      return res.json({ 
-        success: true, 
-        message: `Quest ${newStatus ? 'activated' : 'deactivated'}`,
-        quest_id: questId,
-        is_active: newStatus === 1
-      });
-    });
-  });
-});
+          const response = {
+            referrals: safeReferrals,
+            total_referral_bonus: bonusResult ? bonusResult.total_referral_bonus : 0
+          };
 
-// Export all users data - ADMIN ENDPOINT
-app.get("/api/admin/export/users", (req, res) => {
-  const adminKey = req.query.key;
-  
-  // Simple admin key check (you should use a proper admin key)
-  if (adminKey !== 'admin123') {
-    return res.status(403).json({ error: "Unauthorized. Admin key required." });
-  }
-  
-  db.all(`
-    SELECT 
-      u.telegram_id, 
-      u.username, 
-      u.first_name, 
-      u.points, 
-      u.bybit_uid, 
-      u.referrer_id,
-      u.created_at,
-      (SELECT COUNT(*) FROM Users WHERE referrer_id = u.telegram_id) as referral_count
-    FROM Users u 
-    ORDER BY u.created_at DESC
-  `, (err, users) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    // Get summary stats
-    db.get(`
-      SELECT 
-        COUNT(*) as total_users,
-        SUM(points) as total_points,
-        AVG(points) as avg_points
-      FROM Users
-    `, (statsErr, stats) => {
-      if (statsErr) return res.status(500).json({ error: statsErr.message });
-      
-      res.json({
-        timestamp: new Date().toISOString(),
-        summary: stats,
-        total_users: users.length,
-        users: users
-      });
-    });
-  });
-});
-
-// Export quest completion data - ADMIN ENDPOINT
-app.get("/api/admin/export/quests", (req, res) => {
-  const adminKey = req.query.key;
-  
-  if (adminKey !== 'admin123') {
-    return res.status(403).json({ error: "Unauthorized. Admin key required." });
-  }
-  
-  db.all(`
-    SELECT 
-      q.id,
-      q.title,
-      q.type,
-      q.points_reward,
-      COUNT(uq.user_id) as completion_count,
-      GROUP_CONCAT(uq.user_id) as completed_by_users
-    FROM Quests q
-    LEFT JOIN UserQuests uq ON q.id = uq.quest_id
-    GROUP BY q.id, q.title, q.type, q.points_reward
-    ORDER BY completion_count DESC
-  `, (err, questStats) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    res.json({
-      timestamp: new Date().toISOString(),
-      quest_completion_stats: questStats
-    });
-  });
-});
-
-// Export point transactions - ADMIN ENDPOINT
-app.get("/api/admin/export/transactions", (req, res) => {
-  const adminKey = req.query.key;
-  
-  if (adminKey !== 'admin123') {
-    return res.status(403).json({ error: "Unauthorized. Admin key required." });
-  }
-  
-  db.all(`
-    SELECT 
-      pt.*,
-      u.username,
-      u.first_name
-    FROM PointTransactions pt
-    LEFT JOIN Users u ON pt.user_id = u.telegram_id
-    ORDER BY pt.timestamp DESC
-    LIMIT 1000
-  `, (err, transactions) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    res.json({
-      timestamp: new Date().toISOString(),
-      total_transactions: transactions.length,
-      transactions: transactions
-    });
-  });
-});
-
-
-
-
-
-
-// Admin endpoint to update user points
-app.post("/api/admin/update-points", (req, res) => {
-  const adminKey = req.query.key;
-  
-  if (adminKey !== 'admin123') {
-    return res.status(403).json({ error: "Unauthorized. Admin key required." });
-  }
-  
-  const { userId, points, reason } = req.body;
-  
-  if (!userId || points === undefined) {
-    return res.status(400).json({ error: "userId and points are required" });
-  }
-  
-  // Use addPoints function to update points
-  addPoints(
-    userId,
-    points,
-    reason || 'admin_adjustment',
-    null,
-    null,
-    (err) => {
-      if (err) {
-        return res.status(500).json({ 
-          error: "Failed to update points", 
-          details: err.message 
-        });
-      }
-      
-      res.json({
-        success: true,
-        message: `Updated ${userId} with ${points} points`,
-        timestamp: new Date().toISOString()
-      });
-    }
-  );
-});
-
-// Admin endpoint to fix event config
-app.post("/api/admin/fix-event-config", (req, res) => {
-  const adminKey = req.query.key;
-  
-  if (adminKey !== 'admin123') {
-    return res.status(403).json({ error: "Unauthorized. Admin key required." });
-  }
-  
-  // Set event start date to today at 00:00 UTC
-  const startDate = new Date();
-  startDate.setUTCHours(0, 0, 0, 0);
-  
-  // Event lasts 30 days
-  const endDate = new Date(startDate);
-  endDate.setUTCDate(startDate.getUTCDate() + 30);
-  
-  db.run(
-    "INSERT OR REPLACE INTO EventConfig (id, event_name, start_date, end_date) VALUES (1, 'Bybit City 30-Day Challenge', ?, ?)",
-    [startDate.toISOString(), endDate.toISOString()],
-    function(err) {
-      if (err) {
-        return res.status(500).json({ 
-          error: "Failed to create event config", 
-          details: err.message 
-        });
-      }
-      
-      res.json({
-        success: true,
-        message: "Event configuration created successfully",
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        timestamp: new Date().toISOString()
-      });
+          console.log(
+            `SERVER: Found ${safeReferrals.length} referrals and ${response.total_referral_bonus} bonus points for user ${req.user.telegram_id}`
+          );
+          return res.json(response);
+        }
+      );
     }
   );
 });
@@ -1346,128 +859,6 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
       .status(500)
       .json({ error: "Failed to verify membership", message: error.message });
   }
-});
-
-//
-// Handle when users leave a channel/group
-//
-if (bot) {
-  bot.on("left_chat_member", async (msg) => {
-  if (msg.left_chat_member) {
-    const userId = msg.left_chat_member.id;
-    const chatId = msg.chat.id;
-
-    try {
-      // Find all “social_follow” quests for this chatId
-      const quests = await new Promise((resolve, reject) => {
-        db.all(
-          `SELECT * FROM Quests 
-           WHERE type = 'social_follow' 
-             AND json_extract(quest_data, '$.chatId') = ?`,
-          [chatId.toString()],
-          (err, rows) => (err ? reject(err) : resolve(rows))
-        );
-      });
-
-      if (quests && quests.length > 0) {
-        for (const quest of quests) {
-          // Check if that quest was completed by this user
-          const completed = await new Promise((resolve, reject) => {
-            db.get(
-              "SELECT * FROM UserQuests WHERE user_id = ? AND quest_id = ?",
-              [userId, quest.id],
-              (err, row) => (err ? reject(err) : resolve(row))
-            );
-          });
-
-          if (completed) {
-            // Remove the points
-            addPoints(userId, -quest.points_reward, "left_channel", quest.id, null, () => {});
-
-            // Delete the record of completion
-            db.run(
-              "DELETE FROM UserQuests WHERE user_id = ? AND quest_id = ?",
-              [userId, quest.id],
-              (err) => {
-                if (err) console.error("Error removing completed quest:", err);
-              }
-            );
-
-            console.log(
-              `User ${userId} left chat ${chatId}, removed ${quest.points_reward} points`
-            );
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error handling left_chat_member:", error);
-    }
-  }
-});
-}
-
-//
-// --- Get referral list (new endpoint) ---
-//
-app.get("/api/referrals", ensureUser, (req, res) => {
-  console.log(`SERVER: /api/referrals called for user ${req.user.telegram_id}`);
-
-  // First get the referral users
-  db.all(
-    `
-      SELECT
-        u.telegram_id AS referred_id,
-        u.username    AS referred_username,
-        u.first_name  AS referred_first_name,
-        u.points      AS points_earned,
-        u.created_at  AS created_at
-      FROM Users u
-      WHERE u.referrer_id = ?
-      ORDER BY u.created_at DESC
-    `,
-    [req.user.telegram_id],
-    (err, referrals) => {
-      if (err) {
-        console.error(
-          `SERVER: Error fetching referrals for user ${req.user.telegram_id}:`,
-          err.message
-        );
-        return res.status(500).json({ error: err.message });
-      }
-
-      const safeReferrals = Array.isArray(referrals) ? referrals : [];
-      
-      // Now get the total referral bonus points actually received
-      db.get(
-        `
-          SELECT 
-            COALESCE(SUM(points_change), 0) AS total_referral_bonus
-          FROM PointTransactions 
-          WHERE user_id = ? AND reason = 'referral_bonus'
-        `,
-        [req.user.telegram_id],
-        (bonusErr, bonusResult) => {
-          if (bonusErr) {
-            console.error(
-              `SERVER: Error fetching referral bonus for user ${req.user.telegram_id}:`,
-              bonusErr.message
-            );
-            return res.status(500).json({ error: bonusErr.message });
-          }
-
-          const response = {
-            referrals: safeReferrals,
-            total_referral_bonus: bonusResult ? bonusResult.total_referral_bonus : 0
-          };
-
-          console.log(
-            `SERVER: Found ${safeReferrals.length} referrals and ${response.total_referral_bonus} bonus points for user ${req.user.telegram_id}`
-          );
-          return res.json(response);
-        }
-      );
-    }
-  );
 });
 
 //

@@ -5,10 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "init-db": "node -e \"require('./database-postgres.js').initDb()\"",
-    "dev": "nodemon server.js",
-    "migrate": "node migrate-to-postgres.js migrate",
-    "backup": "node migrate-to-postgres.js backup"
+    "init-db": "node -e \"require('./database.js').initDb()\"",
+    "dev": "nodemon server.js"
   },
   "engines": {
     "node": ">=16.0.0"
