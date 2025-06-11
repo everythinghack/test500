@@ -12,6 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Initialize database
+console.log('Starting database initialization...');
 initDb();
 
 //
