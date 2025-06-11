@@ -1187,6 +1187,44 @@ app.post("/api/admin/update-points", (req, res) => {
   );
 });
 
+// Admin endpoint to fix event config
+app.post("/api/admin/fix-event-config", (req, res) => {
+  const adminKey = req.query.key;
+  
+  if (adminKey !== 'admin123') {
+    return res.status(403).json({ error: "Unauthorized. Admin key required." });
+  }
+  
+  // Set event start date to today at 00:00 UTC
+  const startDate = new Date();
+  startDate.setUTCHours(0, 0, 0, 0);
+  
+  // Event lasts 30 days
+  const endDate = new Date(startDate);
+  endDate.setUTCDate(startDate.getUTCDate() + 30);
+  
+  db.run(
+    "INSERT OR REPLACE INTO EventConfig (id, event_name, start_date, end_date) VALUES (1, 'Bybit City 30-Day Challenge', ?, ?)",
+    [startDate.toISOString(), endDate.toISOString()],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ 
+          error: "Failed to create event config", 
+          details: err.message 
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "Event configuration created successfully",
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        timestamp: new Date().toISOString()
+      });
+    }
+  );
+});
+
 //
 // Verify if user is a member of a Telegram channel/group
 //
