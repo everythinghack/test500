@@ -862,30 +862,71 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
   }
 });
 
-// Simple quest creation endpoint
-app.post("/api/add-sample-quest", (req, res) => {
+// Simple quest creation endpoint (GET for easier testing)
+app.get("/api/setup-quests", (req, res) => {
   const adminKey = req.query.key;
   
   if (adminKey !== 'admin123') {
     return res.status(403).json({ error: "Unauthorized" });
   }
   
-  // Add a simple daily quest
-  const questData = JSON.stringify({
-    question: "What does Bybit's P2P platform allow users to do?",
-    answer: "Trade crypto directly"
-  });
-  
-  db.run(
-    "INSERT INTO Quests (title, description, points_reward, type, quest_data, day_number, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    ["Day 1: P2P Trading", "Learn about P2P trading on Bybit", 20, "daily", questData, 1, true],
-    function(err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json({ success: true, message: "Sample quest added", quest_id: this.lastID });
+  // Add multiple sample quests
+  const quests = [
+    {
+      title: "Day 1: P2P Trading",
+      description: "Learn about P2P trading on Bybit",
+      question: "What does Bybit's P2P platform allow users to do?",
+      answer: "Trade crypto directly",
+      day: 1,
+      type: "daily",
+      points: 20
+    },
+    {
+      title: "Day 2: Launchpad",
+      description: "Discover new token launches",
+      question: "What is the main use of Bybit Launchpad?",
+      answer: "Token launches", 
+      day: 2,
+      type: "daily",
+      points: 20
+    },
+    {
+      title: "Join Bybit Telegram",
+      description: "Join our official Telegram Group",
+      type: "social_follow",
+      points: 50,
+      url: "https://t.me/bybit_official",
+      chatId: "-1001234567890"
     }
-  );
+  ];
+  
+  let addedCount = 0;
+  let totalQuests = quests.length;
+  
+  quests.forEach((quest, index) => {
+    const questData = quest.type === 'daily' 
+      ? JSON.stringify({ question: quest.question, answer: quest.answer })
+      : JSON.stringify({ url: quest.url, chatId: quest.chatId });
+    
+    const sql = quest.type === 'daily'
+      ? "INSERT INTO Quests (title, description, points_reward, type, quest_data, day_number, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      : "INSERT INTO Quests (title, description, points_reward, type, quest_data, is_active) VALUES (?, ?, ?, ?, ?, ?)";
+    
+    const params = quest.type === 'daily'
+      ? [quest.title, quest.description, quest.points, quest.type, questData, quest.day, true]
+      : [quest.title, quest.description, quest.points, quest.type, questData, true];
+    
+    db.run(sql, params, function(err) {
+      addedCount++;
+      if (addedCount === totalQuests) {
+        res.json({ 
+          success: true, 
+          message: `${totalQuests} quests added successfully`,
+          quests_added: totalQuests
+        });
+      }
+    });
+  });
 });
 
 //
