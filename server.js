@@ -1149,6 +1149,45 @@ app.get("/api/admin/export/transactions", (req, res) => {
 
 
 
+// Migration endpoint for PostgreSQL data transfer
+app.post("/api/admin/migrate", (req, res) => {
+  const adminKey = req.query.key;
+  
+  if (adminKey !== 'admin123') {
+    return res.status(403).json({ error: "Unauthorized. Admin key required." });
+  }
+  
+  // Import migration functionality
+  const path = require('path');
+  const migrationScript = path.join(__dirname, 'migrate-to-postgres.js');
+  
+  try {
+    // Execute migration
+    const { exec } = require('child_process');
+    exec('node migrate-to-postgres.js migrate', (error, stdout, stderr) => {
+      if (error) {
+        return res.status(500).json({
+          error: "Migration failed",
+          details: error.message,
+          stderr: stderr
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "Migration completed successfully",
+        output: stdout,
+        timestamp: new Date().toISOString()
+      });
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Migration execution failed", 
+      details: error.message
+    });
+  }
+});
+
 //
 // Verify if user is a member of a Telegram channel/group
 //
