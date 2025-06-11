@@ -587,8 +587,8 @@ const SOCIAL_TASKS = [
     description: 'Join our official Telegram Group',
     points_reward: 50,
     type: 'social_follow',
-    url: 'https://t.me/bybit_official',
-    chatId: '-1001234567890'
+    url: 'https://t.me/test3bybitG',
+    chatId: '-1002001387968'
   },
   {
     id: 2002, 
@@ -596,8 +596,8 @@ const SOCIAL_TASKS = [
     description: 'Join our official Telegram Channel',
     points_reward: 50,
     type: 'social_follow',
-    url: 'https://t.me/bybit_announcements',
-    chatId: '-1001234567891'
+    url: 'https://t.me/test3bybitC',
+    chatId: '-1002033197403'
   },
   {
     id: 2003,
@@ -616,14 +616,15 @@ app.get("/api/quests", ensureUser, (req, res) => {
       return res.status(500).json({ error: "Failed to get event status" });
     }
 
-    // Get user's completed quests from database
-    db.all(
-      "SELECT quest_id FROM UserQuests WHERE user_id = ?",
+    // Get user's completed quests from user's completed_quests field
+    db.get(
+      "SELECT completed_quests FROM Users WHERE telegram_id = ?",
       [req.user.telegram_id],
-      (err, completedQuests) => {
+      (err, user) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        const completedQuestIds = (completedQuests || []).map(q => q.quest_id);
+        const completedQuestIds = user && user.completed_quests ? 
+          user.completed_quests.split(',').map(id => parseInt(id)) : [];
         
         // Process daily quests
         const dailyQuests = DAILY_QUESTS.map(quest => ({
@@ -686,13 +687,17 @@ app.post("/api/quests/complete", ensureUser, (req, res) => {
   }
 
   function processQuestCompletion() {
-    // Check if already completed
+    // Check if already completed using user's completed_quests field
     db.get(
-      `SELECT * FROM UserQuests WHERE user_id = ? AND quest_id = ?`,
-      [req.user.telegram_id, questId],
-      (completedErr, completed) => {
+      "SELECT completed_quests FROM Users WHERE telegram_id = ?",
+      [req.user.telegram_id],
+      (completedErr, user) => {
         if (completedErr) return res.status(500).json({ error: completedErr.message });
-        if (completed) return res.status(400).json({ error: "Quest already completed." });
+        
+        const completedQuests = user && user.completed_quests ? user.completed_quests.split(',') : [];
+        if (completedQuests.includes(questId.toString())) {
+          return res.status(400).json({ error: "Quest already completed." });
+        }
 
         // Check answer for daily quests
         if (quest.type === "daily") {
@@ -715,29 +720,42 @@ app.post("/api/quests/complete", ensureUser, (req, res) => {
                 .json({ error: `Failed to add points: ${addPointsErr.message}` });
             }
 
-            // Mark quest as completed
-            db.run(
-              `INSERT INTO UserQuests (user_id, quest_id) VALUES (?, ?)`,
-              [req.user.telegram_id, questId],
-              function (markErr) {
-                if (markErr) {
-                  return res
-                    .status(500)
-                    .json({ error: `Failed to mark quest as completed: ${markErr.message}` });
+            // Store quest completion in user's data (simple approach to avoid foreign key issues)
+            db.get(
+              "SELECT completed_quests FROM Users WHERE telegram_id = ?",
+              [req.user.telegram_id],
+              (err, user) => {
+                if (err) {
+                  return res.status(500).json({ error: "Failed to check user data" });
                 }
                 
-                let message = "Quest completed!";
-                if (quest.type === 'daily') {
-                  message = `Day ${quest.day_number} quest completed! 🎉`;
-                } else if (quest.type === 'social_follow') {
-                  message = "Social task completed! Thank you for joining!";
+                const completedQuests = user.completed_quests ? user.completed_quests.split(',') : [];
+                if (!completedQuests.includes(questId.toString())) {
+                  completedQuests.push(questId.toString());
                 }
                 
-                return res.json({
-                  success: true,
-                  message: message,
-                  points_earned: quest.points_reward,
-                });
+                db.run(
+                  "UPDATE Users SET completed_quests = ? WHERE telegram_id = ?",
+                  [completedQuests.join(','), req.user.telegram_id],
+                  function (updateErr) {
+                    if (updateErr) {
+                      console.warn("Could not update completed quests, but continuing:", updateErr.message);
+                    }
+                    
+                    let message = "Quest completed!";
+                    if (quest.type === 'daily') {
+                      message = `Day ${quest.day_number} quest completed! 🎉`;
+                    } else if (quest.type === 'social_follow') {
+                      message = "Social task completed! Thank you for joining!";
+                    }
+                    
+                    return res.json({
+                      success: true,
+                      message: message,
+                      points_earned: quest.points_reward,
+                    });
+                  }
+                );
               }
             );
           }
@@ -826,21 +844,23 @@ app.get("/api/referrals", ensureUser, (req, res) => {
 app.post("/api/verify/telegram", ensureUser, async (req, res) => {
   const chatId = req.body.chatId; // Telegram group/channel ID
   const userId = req.user.telegram_id;
+  const questId = req.body.questId;
 
-  console.log(`TELEGRAM_VERIFY: User ${userId} verifying membership in chat ${chatId}`);
+  console.log(`TELEGRAM_VERIFY: User ${userId} verifying membership in chat ${chatId}, quest ${questId}`);
 
   try {
-    // Check if quest was already completed
-    const alreadyCompleted = await new Promise((resolve, reject) => {
+    // Check if quest was already completed using completed_quests field
+    const user = await new Promise((resolve, reject) => {
       db.get(
-        "SELECT * FROM UserQuests WHERE user_id = ? AND quest_id = ?",
-        [userId, req.body.questId],
+        "SELECT completed_quests FROM Users WHERE telegram_id = ?",
+        [userId],
         (err, row) => (err ? reject(err) : resolve(row))
       );
     });
 
-    if (alreadyCompleted) {
-      console.log(`TELEGRAM_VERIFY: User ${userId} already completed quest ${req.body.questId}`);
+    const completedQuests = user && user.completed_quests ? user.completed_quests.split(',') : [];
+    if (completedQuests.includes(questId.toString())) {
+      console.log(`TELEGRAM_VERIFY: User ${userId} already completed quest ${questId}`);
       return res.json({ success: true, message: "Already completed", alreadyVerified: true });
     }
 
@@ -907,21 +927,36 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
               .json({ error: `Failed to add points: ${addPointsErr.message}` });
           }
 
-          db.run(
-            "INSERT INTO UserQuests (user_id, quest_id) VALUES (?, ?)",
-            [userId, questId],
-            function (markErr) {
-              if (markErr) {
-                return res
-                  .status(500)
-                  .json({ error: `Failed to mark quest as completed: ${markErr.message}` });
+          // Store quest completion in user's completed_quests field (avoid foreign key issues)
+          db.get(
+            "SELECT completed_quests FROM Users WHERE telegram_id = ?",
+            [userId],
+            (err, user) => {
+              if (err) {
+                return res.status(500).json({ error: "Failed to check user data" });
               }
-              return res.json({
-                success: true,
-                message: "Verification successful! Points awarded.",
-                points_earned: quest.points_reward,
-                verified: true,
-              });
+              
+              const completedQuests = user.completed_quests ? user.completed_quests.split(',') : [];
+              if (!completedQuests.includes(questId.toString())) {
+                completedQuests.push(questId.toString());
+              }
+              
+              db.run(
+                "UPDATE Users SET completed_quests = ? WHERE telegram_id = ?",
+                [completedQuests.join(','), userId],
+                function (updateErr) {
+                  if (updateErr) {
+                    console.warn("Could not update completed quests, but continuing:", updateErr.message);
+                  }
+                  
+                  return res.json({
+                    success: true,
+                    message: "Verification successful! Points awarded.",
+                    points_earned: quest.points_reward,
+                    verified: true,
+                  });
+                }
+              );
             }
           );
         }

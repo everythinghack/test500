@@ -105,6 +105,7 @@ const initPostgreSQLSchema = async () => {
                 bybit_uid VARCHAR(255),
                 referrer_id VARCHAR(50),
                 last_check_in TIMESTAMP,
+                completed_quests TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (referrer_id) REFERENCES Users(telegram_id) ON DELETE SET NULL
             )
@@ -130,8 +131,7 @@ const initPostgreSQLSchema = async () => {
                 quest_id INTEGER,
                 completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (user_id, quest_id),
-                FOREIGN KEY (user_id) REFERENCES Users(telegram_id) ON DELETE CASCADE,
-                FOREIGN KEY (quest_id) REFERENCES Quests(id) ON DELETE CASCADE
+                FOREIGN KEY (user_id) REFERENCES Users(telegram_id) ON DELETE CASCADE
             )
         `);
 
@@ -145,7 +145,6 @@ const initPostgreSQLSchema = async () => {
                 related_referred_user_id VARCHAR(50),
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES Users(telegram_id) ON DELETE SET NULL,
-                FOREIGN KEY (related_quest_id) REFERENCES Quests(id) ON DELETE SET NULL,
                 FOREIGN KEY (related_referred_user_id) REFERENCES Users(telegram_id) ON DELETE SET NULL
             )
         `);
@@ -197,6 +196,7 @@ const initSQLiteSchema = () => {
                     bybit_uid TEXT,
                     referrer_id TEXT,
                     last_check_in TIMESTAMP,
+                    completed_quests TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (referrer_id) REFERENCES Users(telegram_id) ON DELETE SET NULL ON UPDATE CASCADE
                 );
@@ -218,8 +218,7 @@ const initSQLiteSchema = () => {
                     quest_id INTEGER,
                     completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (user_id, quest_id),
-                    FOREIGN KEY (user_id) REFERENCES Users(telegram_id) ON DELETE CASCADE ON UPDATE CASCADE,
-                    FOREIGN KEY (quest_id) REFERENCES Quests(id) ON DELETE CASCADE ON UPDATE CASCADE
+                    FOREIGN KEY (user_id) REFERENCES Users(telegram_id) ON DELETE CASCADE ON UPDATE CASCADE
                 );
                 
                 CREATE TABLE IF NOT EXISTS PointTransactions (
@@ -231,7 +230,6 @@ const initSQLiteSchema = () => {
                     related_referred_user_id INTEGER,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES Users(telegram_id) ON DELETE SET NULL ON UPDATE CASCADE,
-                    FOREIGN KEY (related_quest_id) REFERENCES Quests(id) ON DELETE SET NULL ON UPDATE CASCADE,
                     FOREIGN KEY (related_referred_user_id) REFERENCES Users(telegram_id) ON DELETE SET NULL ON UPDATE CASCADE
                 );
                 
