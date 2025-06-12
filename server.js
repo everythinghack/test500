@@ -11,9 +11,7 @@ const { db, initDb, addPoints, getCurrentEventDay } = require('./database');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Initialize database
-console.log('Starting database initialization...');
-initDb();
+// Database connection ready (tables should already exist in production)
 
 //
 // --- TELEGRAM BOT CONFIGURATION ---
