@@ -354,34 +354,12 @@ async function initializeTelegramWebApp(tg) {
                 answer
               });
               if (result.success) {
-                // Immediately update the UI to show task as completed
-                item.classList.add('completed');
-                item.classList.remove('available');
-                
-                // Hide input and button, show completed state
+                // Hide input and button first
                 input.style.display = "none";
                 button.style.display = "none";
                 
-                // Add completed button
-                const completedBtn = document.createElement("button");
-                completedBtn.disabled = true;
-                completedBtn.innerHTML = '<i class="fas fa-check"></i> Completed';
-                completedBtn.style.width = "100%";
-                completedBtn.style.marginTop = "10px";
-                item.appendChild(completedBtn);
-                
-                tg.showAlert("✅ " + result.message);
-                
-                // Update points display immediately
-                const currentPoints = parseInt(pointsValueDisplay.textContent) || 0;
-                const newPoints = currentPoints + (result.points_earned || 0);
-                updatePointsDisplay(newPoints);
-                
-                // Reload data in background to sync with server
-                setTimeout(async () => {
-                  await loadTasksPage();
-                  await loadProfilePage();
-                }, 1000);
+                // Update UI to completed state using helper function
+                updateDailyTaskToCompleted(item, result.message, result.points_earned || 0);
               } else {
                 tg.showAlert("❌ " + (result.error || "Answer incorrect"));
                 button.disabled = false;
@@ -396,6 +374,89 @@ async function initializeTelegramWebApp(tg) {
           });
         }
       });
+    }
+
+    // Helper function to update task to completed state
+    function updateTaskToCompleted(taskItem, message, pointsEarned) {
+      // Add completed styling
+      taskItem.classList.add('completed');
+      taskItem.classList.remove('available');
+      
+      // Remove all existing buttons
+      const buttons = taskItem.querySelectorAll('button');
+      buttons.forEach(btn => btn.remove());
+      
+      // Add completed button
+      const completedBtn = document.createElement("button");
+      completedBtn.disabled = true;
+      completedBtn.innerHTML = '<i class="fas fa-check"></i> Completed';
+      completedBtn.className = 'task-item button';
+      completedBtn.style.cssText = `
+        width: 100%;
+        margin-top: 10px;
+        background: #444 !important;
+        cursor: not-allowed;
+        opacity: 0.7;
+      `;
+      taskItem.appendChild(completedBtn);
+      
+      // Show success message
+      tg.showPopup({
+        title: "Success!",
+        message: message || "Task completed successfully!",
+        buttons: [{ type: "ok" }]
+      });
+      
+      // Update points display immediately
+      const currentPoints = parseInt(pointsValueDisplay.textContent) || 0;
+      const newPoints = currentPoints + pointsEarned;
+      updatePointsDisplay(newPoints);
+      
+      // Reload data in background to sync with server
+      setTimeout(async () => {
+        await loadTaskCategory('onetime');
+        await loadProfilePage();
+      }, 1500);
+    }
+    
+    // Helper function for daily tasks completion
+    function updateDailyTaskToCompleted(taskItem, message, pointsEarned) {
+      // Add completed styling
+      taskItem.classList.add('completed');
+      taskItem.classList.remove('available');
+      
+      // Remove all existing buttons and inputs (but keep the existing content structure)
+      const buttons = taskItem.querySelectorAll('button');
+      const inputs = taskItem.querySelectorAll('input');
+      buttons.forEach(btn => btn.remove());
+      inputs.forEach(input => input.remove());
+      
+      // Add completed button
+      const completedBtn = document.createElement("button");
+      completedBtn.disabled = true;
+      completedBtn.innerHTML = '<i class="fas fa-check"></i> Completed';
+      completedBtn.style.cssText = `
+        width: 100%;
+        margin-top: 10px;
+        background: #444 !important;
+        cursor: not-allowed;
+        opacity: 0.7;
+      `;
+      taskItem.appendChild(completedBtn);
+      
+      // Show success message
+      tg.showAlert("✅ " + message);
+      
+      // Update points display immediately
+      const currentPoints = parseInt(pointsValueDisplay.textContent) || 0;
+      const newPoints = currentPoints + pointsEarned;
+      updatePointsDisplay(newPoints);
+      
+      // Reload data in background to sync with server
+      setTimeout(async () => {
+        await loadTasksPage();
+        await loadProfilePage();
+      }, 1500);
     }
 
     async function loadOneTimeTasks(quests) {
@@ -446,94 +507,36 @@ async function initializeTelegramWebApp(tg) {
           verifyBtn.addEventListener("click", async () => {
             const questId = verifyBtn.dataset.questId;
             const chatId = verifyBtn.dataset.chatId;
+            
+            // Prevent multiple clicks
+            if (verifyBtn.disabled) return;
+            
             verifyBtn.disabled = true;
             verifyBtn.textContent = "Verifying...";
 
             try {
+              let result;
+              
               if (!chatId) {
                 // If no chatId (e.g. Twitter), just mark complete
-                const result = await apiRequest("/quests/complete", "POST", {
+                result = await apiRequest("/quests/complete", "POST", {
                   questId: parseInt(questId)
                 });
-                if (result.success) {
-                  // Immediately update the UI to show task as completed
-                  item.classList.add('completed');
-                  item.classList.remove('available');
-                  verifyBtn.style.display = "none";
-                  joinBtn.style.display = "none";
-                  
-                  // Add completed button
-                  const completedBtn = document.createElement("button");
-                  completedBtn.disabled = true;
-                  completedBtn.innerHTML = '<i class="fas fa-check"></i> Completed';
-                  completedBtn.style.width = "100%";
-                  item.appendChild(completedBtn);
-                  
-                  tg.showPopup({
-                    title: "Success!",
-                    message: result.message,
-                    buttons: [{ type: "ok" }]
-                  });
-                  
-                  // Update points display immediately
-                  const currentPoints = parseInt(pointsValueDisplay.textContent) || 0;
-                  const newPoints = currentPoints + (result.points_earned || 0);
-                  updatePointsDisplay(newPoints);
-                  
-                  // Reload data in background to sync with server
-                  setTimeout(async () => {
-                    await loadTaskCategory('onetime');
-                    await loadProfilePage();
-                  }, 1000);
-                } else {
-                  tg.showAlert("❌ " + (result.error || "Verification failed"));
-                  verifyBtn.disabled = false;
-                  verifyBtn.textContent = "Verify";
-                }
-                return;
-              }
-
-              // Otherwise verify membership on Telegram
-              const result = await apiRequest("/verify/telegram", "POST", {
-                questId,
-                chatId
-              });
-              if (result.verified || result.alreadyVerified) {
-                // Immediately update the UI to show task as completed
-                item.classList.add('completed');
-                item.classList.remove('available');
-                verifyBtn.style.display = "none";
-                joinBtn.style.display = "none";
-                
-                // Add completed button
-                const completedBtn = document.createElement("button");
-                completedBtn.disabled = true;
-                completedBtn.innerHTML = '<i class="fas fa-check"></i> Completed';
-                completedBtn.style.width = "100%";
-                item.appendChild(completedBtn);
-                
-                tg.showPopup({
-                  title: "Success!",
-                  message: result.message,
-                  buttons: [{ type: "ok" }]
-                });
-                
-                // Update points display immediately
-                const currentPoints = parseInt(pointsValueDisplay.textContent) || 0;
-                const newPoints = currentPoints + (result.points_earned || 0);
-                updatePointsDisplay(newPoints);
-                
-                // Reload data in background to sync with server
-                setTimeout(async () => {
-                  await loadTaskCategory('onetime');
-                  await loadProfilePage();
-                }, 1000);
               } else {
-                tg.showPopup({
-                  title: "Not Verified",
-                  message: result.message,
-                  buttons: [{ type: "ok" }]
+                // Otherwise verify membership on Telegram
+                result = await apiRequest("/verify/telegram", "POST", {
+                  questId: parseInt(questId),
+                  chatId
                 });
+              }
+              
+              if (result.success || result.verified || result.alreadyVerified) {
+                // Update UI to completed state
+                updateTaskToCompleted(item, result.message, result.points_earned || 0);
+              } else {
+                // Reset button on failure
+                const errorMsg = result.error || result.message || "Verification failed";
+                tg.showAlert("❌ " + errorMsg);
                 verifyBtn.disabled = false;
                 verifyBtn.textContent = "Verify";
               }
