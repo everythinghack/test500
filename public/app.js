@@ -354,9 +354,34 @@ async function initializeTelegramWebApp(tg) {
                 answer
               });
               if (result.success) {
+                // Immediately update the UI to show task as completed
+                item.classList.add('completed');
+                item.classList.remove('available');
+                
+                // Hide input and button, show completed state
+                input.style.display = "none";
+                button.style.display = "none";
+                
+                // Add completed button
+                const completedBtn = document.createElement("button");
+                completedBtn.disabled = true;
+                completedBtn.innerHTML = '<i class="fas fa-check"></i> Completed';
+                completedBtn.style.width = "100%";
+                completedBtn.style.marginTop = "10px";
+                item.appendChild(completedBtn);
+                
                 tg.showAlert("✅ " + result.message);
-                await loadTasksPage();
-                await loadProfilePage();
+                
+                // Update points display immediately
+                const currentPoints = parseInt(pointsValueDisplay.textContent) || 0;
+                const newPoints = currentPoints + (result.points_earned || 0);
+                updatePointsDisplay(newPoints);
+                
+                // Reload data in background to sync with server
+                setTimeout(async () => {
+                  await loadTasksPage();
+                  await loadProfilePage();
+                }, 1000);
               } else {
                 tg.showAlert("❌ " + (result.error || "Answer incorrect"));
                 button.disabled = false;
@@ -431,13 +456,35 @@ async function initializeTelegramWebApp(tg) {
                   questId: parseInt(questId)
                 });
                 if (result.success) {
+                  // Immediately update the UI to show task as completed
+                  item.classList.add('completed');
+                  item.classList.remove('available');
+                  verifyBtn.style.display = "none";
+                  joinBtn.style.display = "none";
+                  
+                  // Add completed button
+                  const completedBtn = document.createElement("button");
+                  completedBtn.disabled = true;
+                  completedBtn.innerHTML = '<i class="fas fa-check"></i> Completed';
+                  completedBtn.style.width = "100%";
+                  item.appendChild(completedBtn);
+                  
                   tg.showPopup({
                     title: "Success!",
                     message: result.message,
                     buttons: [{ type: "ok" }]
                   });
-                  await loadTaskCategory('onetime');
-                  await loadProfilePage();
+                  
+                  // Update points display immediately
+                  const currentPoints = parseInt(pointsValueDisplay.textContent) || 0;
+                  const newPoints = currentPoints + (result.points_earned || 0);
+                  updatePointsDisplay(newPoints);
+                  
+                  // Reload data in background to sync with server
+                  setTimeout(async () => {
+                    await loadTaskCategory('onetime');
+                    await loadProfilePage();
+                  }, 1000);
                 } else {
                   tg.showAlert("❌ " + (result.error || "Verification failed"));
                   verifyBtn.disabled = false;
@@ -452,13 +499,35 @@ async function initializeTelegramWebApp(tg) {
                 chatId
               });
               if (result.verified || result.alreadyVerified) {
+                // Immediately update the UI to show task as completed
+                item.classList.add('completed');
+                item.classList.remove('available');
+                verifyBtn.style.display = "none";
+                joinBtn.style.display = "none";
+                
+                // Add completed button
+                const completedBtn = document.createElement("button");
+                completedBtn.disabled = true;
+                completedBtn.innerHTML = '<i class="fas fa-check"></i> Completed';
+                completedBtn.style.width = "100%";
+                item.appendChild(completedBtn);
+                
                 tg.showPopup({
                   title: "Success!",
                   message: result.message,
                   buttons: [{ type: "ok" }]
                 });
-                await loadTaskCategory('onetime');
-                await loadProfilePage();
+                
+                // Update points display immediately
+                const currentPoints = parseInt(pointsValueDisplay.textContent) || 0;
+                const newPoints = currentPoints + (result.points_earned || 0);
+                updatePointsDisplay(newPoints);
+                
+                // Reload data in background to sync with server
+                setTimeout(async () => {
+                  await loadTaskCategory('onetime');
+                  await loadProfilePage();
+                }, 1000);
               } else {
                 tg.showPopup({
                   title: "Not Verified",
