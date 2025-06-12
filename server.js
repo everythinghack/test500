@@ -15,7 +15,12 @@ const PORT = process.env.PORT || 8080;
 const ensureTablesExist = async () => {
   try {
     // Test if Users table exists by running a simple query
-    await db.query('SELECT COUNT(*) FROM Users LIMIT 1');
+    await new Promise((resolve, reject) => {
+      db.get('SELECT COUNT(*) as count FROM Users LIMIT 1', [], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
     console.log('✅ Database tables confirmed to exist');
   } catch (error) {
     console.log('⚠️  Database tables missing, initializing...');
@@ -31,8 +36,7 @@ ensureTablesExist();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MINI_APP_URL =
   process.env.MINI_APP_URL ||
-  process.env.RAILWAY_STATIC_URL ||
-  "https://bybit-event-mini-app-production-ae87.up.railway.app";
+  "https://bybit-telegram-bot-464578924371.asia-south1.run.app";
 
 // For local testing, allow running without bot token
 const IS_LOCAL = process.env.NODE_ENV !== 'production' && MINI_APP_URL.includes('localhost');
