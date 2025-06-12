@@ -990,6 +990,29 @@ app.post("/api/verify/telegram", ensureUser, async (req, res) => {
 
 
 //
+// One-time database setup endpoint (for Cloud Run and other deployments)
+//
+app.get("/setup-database", async (req, res) => {
+  try {
+    console.log('🚀 Manual database setup requested...');
+    await initDb();
+    console.log('✅ Database setup completed successfully!');
+    res.json({ 
+      success: true, 
+      message: 'Database initialized successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Database setup failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Database setup failed',
+      error: error.message
+    });
+  }
+});
+
+//
 // Fallback for Single Page App (serve index.html on any unknown route)
 //
 app.get("*", (req, res) => {
