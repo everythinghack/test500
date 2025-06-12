@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "init-db": "node -e \"require('./database.js').initDb()\"",
+    "init-db": "node -e \"require('./database.js').initDb().then(() => console.log('Database initialized successfully')).catch(err => { console.error('Database initialization failed:', err); process.exit(1); })\"",
     "dev": "nodemon server.js"
   },
   "engines": {
