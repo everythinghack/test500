@@ -11,7 +11,19 @@ const { db, initDb, addPoints, getCurrentEventDay } = require('./database');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Database connection ready (tables should already exist in production)
+// Ensure database tables exist (safe initialization)
+const ensureTablesExist = async () => {
+  try {
+    // Test if Users table exists by running a simple query
+    await db.query('SELECT COUNT(*) FROM Users LIMIT 1');
+    console.log('✅ Database tables confirmed to exist');
+  } catch (error) {
+    console.log('⚠️  Database tables missing, initializing...');
+    await initDb();
+    console.log('✅ Database initialized successfully');
+  }
+};
+ensureTablesExist();
 
 //
 // --- TELEGRAM BOT CONFIGURATION ---
