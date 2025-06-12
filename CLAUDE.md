@@ -2,17 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Bot Configuration
+
+- **Bot Token**: `8120704547:AAEPEn9EY8bZmiGyIFh7dtFwPVwPs0zGpyA`
+- **Bot Username**: `@testbla700bot`
+- **Deployment URL**: `https://bybit-telegram-bot-464578924371.asia-south1.run.app`
+- **Container Image**: `everythinghack/bybit-telegram-bot`
+
 ## Common Development Commands
 
 - **Start development server**: `npm run dev` (uses nodemon for auto-restart)
 - **Start production server**: `npm start`
-- **Initialize database**: `npm run init-db`
-- **Deploy to Railway**: Push to GitHub main branch (auto-deploys via railway.json config)
-- **Deploy to Google Cloud Run**: See `DEPLOYMENT.md` for complete instructions
+- **Initialize database**: `npm run setup-db` (one-time only)
+- **Deploy to Cloud Run**: `docker build -t everythinghack/bybit-telegram-bot . && docker push everythinghack/bybit-telegram-bot`
+- **Setup database**: Visit `https://bybit-telegram-bot-464578924371.asia-south1.run.app/setup-database` (one-time only)
 
 ## Architecture Overview
 
-This is a Telegram Mini Web App for Bybit events with a Node.js/Express backend and vanilla JavaScript frontend. The app uses a hybrid database approach with PostgreSQL for production (Railway) and SQLite for local development.
+This is a Telegram Mini Web App for Bybit events with a Node.js/Express backend and vanilla JavaScript frontend. The app uses SQLite for local development and Cloud Run's managed storage for production.
 
 ### Core Components
 
@@ -24,7 +31,7 @@ This is a Telegram Mini Web App for Bybit events with a Node.js/Express backend 
 - **Hardcoded quest system**: DAILY_QUESTS and SOCIAL_TASKS arrays in server.js for easy modification
 
 **Database (`database.js`)**:
-- **Dual database support**: PostgreSQL for production (Railway), SQLite for local development
+- **SQLite database**: Persistent storage on Cloud Run with automatic backups
 - Tables: Users, Quests, UserQuests, PointTransactions, PendingReferrals, EventConfig
 - `addPoints()` function handles both point addition and automatic referral bonuses (10% to referrer)
 - **Quest completion tracking**: Uses `completed_quests` TEXT field in Users table to avoid foreign key constraints
@@ -42,7 +49,7 @@ This is a Telegram Mini Web App for Bybit events with a Node.js/Express backend 
 
 **Quest Completion Strategy**: Uses `completed_quests` TEXT field in Users table storing comma-separated quest IDs instead of UserQuests table to prevent foreign key constraint failures.
 
-**Database Abstraction**: `database.js` provides SQLite-compatible wrapper methods for PostgreSQL to maintain consistent API across environments.
+**Data Persistence**: SQLite database persists across Cloud Run deployments using container storage.
 
 ### Key Features
 
@@ -55,9 +62,9 @@ This is a Telegram Mini Web App for Bybit events with a Node.js/Express backend 
 ### Environment Variables
 
 Required:
-- `TELEGRAM_BOT_TOKEN`: Bot token from @BotFather (7414638833:AAGLMQHQHScDJohRrIvcmYvUAcLwdV0vA5I)
-- `MINI_APP_URL`: Your deployed app URL (for webhook and Mini App configuration)
-- `DATABASE_URL`: PostgreSQL connection string (automatically provided by Railway)
+- `TELEGRAM_BOT_TOKEN`: `8120704547:AAEPEn9EY8bZmiGyIFh7dtFwPVwPs0zGpyA`
+- `MINI_APP_URL`: `https://bybit-telegram-bot-464578924371.asia-south1.run.app`
+- `NODE_ENV`: `production`
 
 ### Quest/Task Configuration
 
@@ -76,4 +83,7 @@ Key relationships:
 
 ### Deployment
 
-Primary deployment via Railway with PostgreSQL. Uses `railway.json` for configuration. Bot configuration: @testbla500bot. See `DEPLOYMENT.md` for multiple deployment options including Railway, Render, and Google Cloud Run.
+Deployment via Google Cloud Run using Docker Hub container. Bot configuration: @testbla700bot. Database initialization via `/setup-database` endpoint (one-time only).
+
+**Container Image**: `everythinghack/bybit-telegram-bot`
+**Deployment URL**: `https://bybit-telegram-bot-464578924371.asia-south1.run.app`
