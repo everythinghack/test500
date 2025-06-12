@@ -428,15 +428,21 @@ async function initializeTelegramWebApp(tg) {
               if (!chatId) {
                 // If no chatId (e.g. Twitter), just mark complete
                 const result = await apiRequest("/quests/complete", "POST", {
-                  questId
+                  questId: parseInt(questId)
                 });
-                tg.showPopup({
-                  title: "Success!",
-                  message: result.message,
-                  buttons: [{ type: "ok" }]
-                });
-                await loadTaskCategory('onetime');
-                await loadProfilePage();
+                if (result.success) {
+                  tg.showPopup({
+                    title: "Success!",
+                    message: result.message,
+                    buttons: [{ type: "ok" }]
+                  });
+                  await loadTaskCategory('onetime');
+                  await loadProfilePage();
+                } else {
+                  tg.showAlert("❌ " + (result.error || "Verification failed"));
+                  verifyBtn.disabled = false;
+                  verifyBtn.textContent = "Verify";
+                }
                 return;
               }
 

@@ -699,12 +699,13 @@ app.post("/api/quests/complete", ensureUser, (req, res) => {
           return res.status(400).json({ error: "Quest already completed." });
         }
 
-        // Check answer for daily quests
+        // Check answer for daily quests, but not for social tasks
         if (quest.type === "daily") {
           if (!answer || answer.toLowerCase().trim() !== quest.answer?.toLowerCase().trim()) {
             return res.status(400).json({ error: "Incorrect answer. Try again!" });
           }
         }
+        // Social tasks (like Twitter follow) don't need answer validation
 
         // Add points to user (don't use questId as foreign key since quest isn't in DB)
         addPoints(
