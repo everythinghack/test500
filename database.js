@@ -170,10 +170,6 @@ const initPostgreSQLSchema = async () => {
         `);
 
         console.log('PostgreSQL schema initialized successfully');
-        
-        // Initialize event configuration only
-        await initializeEventConfig();
-        
         console.log('PostgreSQL initialization complete');
         
     } catch (error) {
